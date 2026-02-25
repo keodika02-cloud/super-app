@@ -12,9 +12,10 @@ interface SafeScreenProps {
     config: ScreenConfig;
     children: (data: any, isRefreshing: boolean, refetch: () => void) => React.ReactNode;
     showScroll?: boolean;
+    headerRight?: React.ReactNode;
 }
 
-export const SafeScreen: React.FC<SafeScreenProps> = ({ config, children, showScroll = true }) => {
+export const SafeScreen: React.FC<SafeScreenProps> = ({ config, children, showScroll = true, headerRight }) => {
     const fadeAnim = React.useRef(new Animated.Value(0)).current;
 
     // Memoize fallback để tránh loop render do reference thay đổi
@@ -77,6 +78,7 @@ export const SafeScreen: React.FC<SafeScreenProps> = ({ config, children, showSc
 
                 <View style={styles.header}>
                     <Text style={styles.title}>{config.title}</Text>
+                    {headerRight && <View style={styles.headerRight}>{headerRight}</View>}
                 </View>
 
                 {showScroll ? (
@@ -102,9 +104,17 @@ export const SafeScreen: React.FC<SafeScreenProps> = ({ config, children, showSc
 
 const styles = StyleSheet.create({
     header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
         paddingHorizontal: 16,
-        paddingTop: 50,
+        paddingTop: 16,
         paddingBottom: 16,
+    },
+    headerRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
     },
     title: {
         fontSize: 32,

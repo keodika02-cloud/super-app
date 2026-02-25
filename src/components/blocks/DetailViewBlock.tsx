@@ -3,10 +3,10 @@ import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity } from 'rea
 import { UIBlock } from '../../core/sdui/LayoutEngine';
 import { ActionRegistry } from '../../utils/ActionRegistry';
 
-export const DetailViewBlock: React.FC<{ data: UIBlock }> = ({ data }) => {
+export const DetailViewBlock: React.FC<{ data: any }> = ({ data = {} }) => {
     const {
         cover_image, title, subtitle, attributes, html_content, buttons
-    } = data.properties;
+    } = data;
 
     return (
         <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>

@@ -157,12 +157,17 @@ export const SduiBlockSchema = z.union([
     z.object({ type: z.literal('HtmlBlock'), id: z.string().catch('html_block'), data: HtmlBlockDataSchema }),
     z.object({ type: z.literal('StoryBlock'), id: z.string().catch('story'), data: StoryBlockDataSchema }),
     z.object({ type: z.literal('PostComposerBlock'), id: z.string().catch('composer'), data: PostComposerDataSchema }),
-    // New blocks
     z.object({ type: z.literal('ImageBlock'), id: z.string().catch('img'), data: ImageBlockDataSchema }),
     z.object({ type: z.literal('CameraBlock'), id: z.string().catch('cam'), data: CameraBlockDataSchema }),
     z.object({ type: z.literal('GpsBlock'), id: z.string().catch('gps'), data: GpsBlockDataSchema }),
     z.object({ type: z.literal('CommentBlock'), id: z.string().catch('cmt'), data: CommentBlockDataSchema }),
     z.object({ type: z.literal('UploadBlock'), id: z.string().catch('upl'), data: UploadBlockDataSchema }),
+    // SDUI Blocks vạn năng
+    z.object({ type: z.literal('HEADER_BANNER'), id: z.string().catch('hdr'), data: BannerDataSchema }),
+    z.object({ type: z.literal('TASK_BOARD'), id: z.string().catch('tsk'), data: z.any().catch({}) }),
+    z.object({ type: z.literal('LIST_GROUP'), id: z.string().catch('lst'), data: z.any().catch({}) }),
+    z.object({ type: z.literal('DETAIL_VIEW'), id: z.string().catch('dtl'), data: z.any().catch({}) }),
+    z.object({ type: z.literal('FORM_INPUT'), id: z.string().catch('frm'), data: z.any().catch({}) }),
 
     // Block dự phòng cho tương lai (UnknownBlock) - Phải để ở cuối cùng
     z.object({

@@ -4,8 +4,8 @@ import { UIBlock } from '../../core/sdui/LayoutEngine';
 import { ApiClient } from '../../services/ApiClient';
 import { ActionRegistry } from '../../utils/ActionRegistry';
 
-export const FormInputBlock: React.FC<{ data: UIBlock }> = ({ data }) => {
-    const { title, fields, submit_url, submit_label, success_action } = data.properties;
+export const FormInputBlock: React.FC<{ data: any }> = ({ data = {} }) => {
+    const { title, fields, submit_url, submit_label, success_action } = data;
     const [formData, setFormData] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(false);
 

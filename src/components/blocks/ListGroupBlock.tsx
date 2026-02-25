@@ -3,8 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { UIBlock } from '../../core/sdui/LayoutEngine';
 import { ActionRegistry } from '../../utils/ActionRegistry';
 
-export const ListGroupBlock: React.FC<{ data: UIBlock }> = ({ data }) => {
-    const { title, items, style_type } = data.properties;
+export const ListGroupBlock: React.FC<{ data: any }> = ({ data = {} }) => {
+    const { title, items, style_type } = data;
 
     const isCard = style_type === 'card';
 

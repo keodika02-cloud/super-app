@@ -9,20 +9,21 @@ import { useRouter } from 'expo-router';
 export default function HomeScreen() {
     const router = useRouter();
 
+    const headerActions = (
+        <>
+            <TouchableOpacity style={styles.iconBtn}><Text style={styles.iconTxt}>✨</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/(main)/notifications')}>
+                <Text style={styles.iconTxt}>🔔</Text>
+                <View style={styles.unreadBadge} />
+            </TouchableOpacity>
+        </>
+    );
+
     return (
-        <SafeScreen config={SCREEN_CONFIGS.HOME}>
+        <SafeScreen config={SCREEN_CONFIGS.HOME} headerRight={headerActions}>
             {(blocks) => (
                 <View style={styles.container}>
                     <SduiEngine blocks={blocks} />
-
-                    {/* Header Actions - Nút bấm phải nằm ở sau SduiEngine (phía dưới DOM) và zIndex cao để nổi lên trên */}
-                    <View style={styles.absoluteActions}>
-                        <TouchableOpacity style={styles.iconBtn}><Text style={styles.iconTxt}>✨</Text></TouchableOpacity>
-                        <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/(main)/notifications')}>
-                            <Text style={styles.iconTxt}>🔔</Text>
-                            <View style={styles.unreadBadge} />
-                        </TouchableOpacity>
-                    </View>
                 </View>
             )}
         </SafeScreen>
@@ -33,19 +34,10 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
-    absoluteActions: {
-        flexDirection: 'row',
-        position: 'absolute',
-        top: -55, // Trùng khớp với SafeScreen header
-        right: 16,
-        gap: 12,
-        zIndex: 9999,      // Luôn nằm ở trên top các block bên dưới
-        elevation: 10,     // Nổi khối trên Android
-    },
     iconBtn: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
+        width: 40,
+        height: 40,
+        borderRadius: 20,
         backgroundColor: 'rgba(255,255,255,0.7)',
         alignItems: 'center',
         justifyContent: 'center',

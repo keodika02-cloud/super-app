@@ -3,8 +3,8 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'rea
 import { UIBlock } from '../../core/sdui/LayoutEngine';
 import { ActionRegistry } from '../../utils/ActionRegistry';
 
-export const TaskBoardBlock: React.FC<{ data: UIBlock }> = ({ data }) => {
-    const { title, columns } = data.properties;
+export const TaskBoardBlock: React.FC<{ data: any }> = ({ data = {} }) => {
+    const { title, columns } = data;
 
     return (
         <View style={styles.container}>
