@@ -9,15 +9,16 @@ CHƯƠNG 1: TỔNG QUAN THIẾT KẾ HỆ THỐNG
 ## 1.1. TỔNG QUAN CÔNG NGHỆ & PHIÊN BẢN (STRICT STACK)
 
 Yêu cầu tuân thủ chính xác phiên bản này. Đây là bộ khung "Safe List" đã được kiểm chứng độ tương thích giữa Expo Go và Apple/Google.
-Thành phần Công nghệ / Thư viện Phiên bản / Ghi chú Lý do chọn (Compliance & Stability)
-Framework Expo Managed Workflow SDK 53 (React Native 0.76) Chuẩn ổn định nhất hiện tại, hỗ trợ OTA Update.
-Language TypeScript v5.x (Strict Mode) Bắt buộc để map chính xác Type từ Laravel.
-Styling NativeWind + Reanimated v4.0 Tương thích Tailwind, giảm dung lượng App.
-Routing Expo Router v3.5+ Routing theo file (File-based), hỗ trợ Deep Link tốt cho Marketing.
-State Zustand + TanStack Query Latest Quản lý Server State (Caching API) và Global State nhẹ nhàng.
-Network Axios v1.7+ Xử lý Interceptor cho cấu trúc Envelope của Laravel.
-Storage SecureStore + AsyncStore Thay thế MMKV BẮT BUỘC: MMKV gây lỗi trên Expo Go chuẩn. Dùng SecureStore cho Token để đạt chuẩn bảo mật Apple.
-Hardware expo-camera, expo-location Latest LƯU Ý: Phải bọc trong lớp HardwareGuard để không crash trên Linux.
+Thành phần Công nghệ / Thư viện | Phiên bản | Ghi chú Lý do chọn (Compliance & Stability)
+:--- | :--- | :---
+Framework | Expo SDK 53 (React Native 0.76) | Chuẩn ổn định nhất hiện tại, hỗ trợ OTA Update.
+Language | TypeScript v5.x (Strict Mode) | Bắt buộc để map chính xác Type từ Laravel.
+Styling | **NativeWind v4** + Reanimated | Tương thích Tailwind, hiệu năng cao.
+Routing | Expo Router v3.5+ | Routing theo file (File-based), hỗ trợ Deep Link.
+State | Zustand + TanStack Query v5 | Quản lý Server State và Global State.
+Network | **Axios (ApiClient Hardened)** | Interceptor xử lý Envelope, Circuit Breaker, Rate Limit.
+Storage | **StorageService** | Wrapper thông minh cho SecureStore & AsyncStore.
+Hardware | expo-camera, expo-location | Bọc trong **HardwareGuard** (useSafeHardware).
 
 ### 1.2. CHIẾN LƯỢC KẾT NỐI "HYBRID" (REAL API - MOCK INPUT)
 
@@ -66,41 +67,36 @@ Khớp hoàn toàn với file Backend: app/Models/AppComponent.php & ScreenContr
 ````
 // File: src/types/sdui.ts
 
-// 1. Các loại Block mà hệ thống hỗ trợ
+// 1. Các loại Block mà hệ thống hỗ trợ (Dựa trên Reality Engine V4.0)
 export type BlockType = 
-  | 'HEADER_BANNER'   // Banner đầu trang
-  | 'GRID_MENU'       // Menu chức năng 
-  | 'NEWS_LIST'       // Danh sách tin tức
-  | 'VERTICAL_LIST'   // Danh sách dọc (Task/Attendance)
-  | 'CHART_PIE';      // Biểu đồ (nếu có)
+  | 'ProfileHeaderBlock'  // Header thông tin user
+  | 'GridMenuBlock'       // Menu lưới chức năng 
+  | 'BannerBlock'         // Thẻ banner quảng cáo
+  | 'SummaryCardBlock'    // Thẻ báo cáo nhanh
+  | 'SocialFeedBlock'     // Bảng tin mạng xã hội
+  | 'HtmlBlock'           // Khối nội dung HTML tùy chỉnh
+  | 'StoryBlock'          // Danh sách story người dùng
+  | 'FeedActionBlock'     // Các nút hành động nhanh trên feed
+  | 'PostComposerBlock';  // Ô soạn thảo bài viết
 
-// 2. Định nghĩa Hành động (Action) - Khớp AppAction.php
+// 2. Định nghĩa Hành động (Action)
 export interface AppAction {
   type: 'NAVIGATE' | 'API_CALL' | 'OPEN_URL';
-  target: string;                // VD: "ProfileScreen" hoặc "/api/v1/check-in"
-  payload?: Record<string, any>; // VD: { "id": 1 }
-  requires_auth?: boolean;       // True: Cần login mới bấm được
+  target: string;                // Route name (VD: "checkin") hoặc URL
+  payload?: Record<string, any>; // Dữ liệu bổ sung
 }
 
-// 3. Định nghĩa Block UI
+// 3. Định nghĩa Module Render (Atomic Components)
 export interface UIBlock {
-  id: string | number;
+  id: string;                    // Unique ID cho Key React
   type: BlockType;
-  properties: {
-    title?: string;
-    icon?: string;       // Tên icon Lucide hoặc URL ảnh
-    style?: string;      // Class Tailwind (VD: "bg-red-500")
-    data_endpoint?: string; // Nếu block cần tự load dữ liệu riêng
-    [key: string]: any;
-  };
+  data: any;                     // Payload dữ liệu đặc thù cho từng Block
   action?: AppAction;
-  children?: UIBlock[]; // Hỗ trợ layout lồng nhau
 }
-// 4. Response của API /screen/{code}
+
+// 4. Response của API /v3/app/ui-layout
 export interface ScreenData {
-  screen_code: string; // VD: "HOME"
-  title: string;
-  blocks: UIBlock[];
+  layout: UIBlock[];
 }
 ````
 
@@ -125,109 +121,73 @@ o Tuyệt đối không: Trả về string format sẵn như "22/01/2026" (gây 
 1.4. DANH SÁCH COMPONENT & FUNCTION DÙNG CHUNG (REUSABLE CORE)
 Hệ thống được chia thành các module tái sử dụng tối đa, tránh viết code lặp lại.
 A. Core Functions (Logic nền tảng)
-Tên Function File Nhiệm vụ & Logic
-useSafeHardware src/core/hardware/ QUAN TRỌNG NHẤT.
-
-- Check Device.isDevice.
-- Nếu False (Antigravity): Trả về Mock GPS/Camera.
-- Nếu True: Gọi Native Module.
-Giúp App chạy được trên Cloud.
-apiClient src/core/networking/ Interceptor Wrapper.
-- Tự động thêm Bearer Token.
-- Tự động bóc tách Envelope (response.data.data).
-- Tự động Log trace_id khi lỗi.
-useLayout src/hooks/ SDUI Fetcher.
-- Gọi API /api/app/screen/{code}.
-- Cache dữ liệu vào AsyncStore để hỗ trợ Offline.
-- Trả về mảng blocks cho UI render.
-useBootstrap src/hooks/ App Startup.
-- Gọi /api/app/ bootstrap.
-- Kiểm tra review_mode. Nếu true -> Ẩn các menu nhạy cảm (Chấm công, Social Login) để qua mặt Apple Review.
-useKeyboardOffset src/hooks/ui Keyboard Handler.
-- Tự động tính toán chiều cao bàn phím.
-- Giúp các Form nhập liệu (Login, Report) không bị bàn phím che mất nút Submit.
-- Lý do: Lỗi UX phổ biến nhất trên Mobile.
+Tên Function | File | Nhiệm vụ & Logic
+--- | --- | ---
+**useSafeHardware** | `src/core/hardware/` | QUAN TRỌNG NHẤT: Trả về Mock GPS/Camera nếu chạy trên Antigravity, tránh crash.
+**ApiClient** | `src/services/` | Hardened Axios: Bóc Envelope, Circuit Breaker, xử lý 429/401 tự động.
+**StorageService** | `src/services/` | Wrapper cho SecureStore (Token) và AsyncStore (Config). Tự động fallback trên Web.
+**useScreenData** | `src/hooks/` | SDUI Fetcher: Gọi `/v3/app/ui-layout`, hỗ trợ Offline-first.
+**useAuthStore** | `src/stores/` | Quản lý phiên đăng nhập, hydrate dữ liệu từ bộ nhớ khi khởi động.
 
 B. UI Components (Giao diện chuẩn)
-Tên Component File Mô tả & Cách dùng
-LayoutEngine src/core/sdui/ Bộ não Render.
+Tên Component | File | Mô tả & Cách dùng
+--- | --- | ---
+**LayoutEngine** | `src/core/sdui/` | Render mảng blocks. Fail-safe: Widget lạ -> Null (Prod) / ErrorBox (Dev).
+**ScreenWrapper** | `src/components/layout/` | Khung màn hình: Xử lý SafeArea, Offline Banner đồng bộ.
+**GlassCard** | `src/components/ui/` | Thẻ kính mờ: UI đặc trưng của QVC App, dùng cho mọi khối thông tin.
+**AppButton** | `src/components/ui/` | Nút chuẩn: Hỗ trợ loading, disabled state và gradient style.
+**ErrorBoundary**| `src/components/error/`| Bọc ngoài cùng: Bắt lỗi runtime, tránh App bị văng (Crash).
 
-- Nhận mảng blocks.
-- Dùng switch(type) để gọi Component con tương ứng.
-- Fail-safe: Nếu gặp type lạ -> Return null (Không crash).
-DynamicIcon src/components/ui/ Icon Handler.
-- Input: Chuỗi string (VD: "User", "http://...").
-- Logic: Nếu là URL -> Render <Image>, nếu là tên -> Render LucideIcon.
-GlassCard src/components/ui/ Style chuẩn.
-- Hiệu ứng kính mờ (Blur) dùng cho mọi Card thông tin.
-- Đảm bảo đồng bộ thiết kế toàn App.
-ScreenWrapper src/components/layout/ Khung màn hình.
-- Tự động xử lý SafeArea.
-- Tự động hiện thông báo "Mất kết nối mạng".
+### 1.6. CHIẾN LƯỢC PHÒNG VỆ & "ZERO-CRASH" (HARDENING)
+Dự án áp dụng các kỹ thuật cao cấp để đảm bảo App không bao giờ bị văng (Crash) dù Server trả về dữ liệu sai hoặc mất mạng đột ngột.
 
-1.5. DANH SÁCH API CHÍNH THỨC (MASTER API LIST)
-Frontend gọi các API trong danh sách này.
-NHÓM 1: HỆ THỐNG & UI (SYSTEM CORE)
-Endpoint Method Mô tả Request Response Data
-/api/app/bootstrap GET Khởi động. Lấy config, menu, review mode. (None) { review_mode: true, menu: [...], features: {...} }
-/api/app/screens/{code} GET SDUI. Lấy cấu trúc màn hình. ?code=HOME { title: "Home", blocks: [{ type: "BANNER", data: {...} }] }
-/api/app/config GET Config. Lấy cấu hình động. (None) { radius_checkin: 100, hotline: "1900..." }
-/api/device/register POST FCM. Đăng ký nhận thông báo. { fcm_token, platform } { success: true }
+1.  **Response Hardening (Zod Validation)**:
+    - Mọi API call đều được bọc trong `fetchSafe`.
+    - Dữ liệu trả về được validate bằng Zod Schema. Nếu sai cấu trúc, App sẽ dùng `fallbackRes` thay vì crash.
+2.  **Circuit Breaker & Rate Limit**:
+    - `ApiClient` tích hợp cơ chế tự ngắt nếu Server lỗi liên tục, tránh làm treo tài nguyên điện thoại.
+    - Xử lý mã lỗi 429 (Too Many Requests) bằng cách tạm dừng và hiển thị thông báo "Hệ thống đang bận".
+3.  **Global Logout Guard**:
+    - Response Interceptor tự động xóa trắng thông tin phiên và đẩy user về màn Login nếu nhận mã 401 (Unauthorized).
+4.  **Hardware Mocking**:
+    - Sử dụng `HardwareGuard` để cung cấp dữ liệu giả lập cho GPS/Camera khi chạy trên môi trường không có phần cứng (như Antigravity).
 
-NHÓM 2: XÁC THỰC & TÀI KHOẢN (AUTH)
-Endpoint Method Mô tả Request Response Data
-/api/auth/login POST Login thường. { email, password } { token: "...", user: {...} }
-/api/auth/apple POST Login Apple. { identity_token } { token: "...", user: {...} }
-/api/auth/google POST Login Google. { access_token } { token: "...", user: {...} }
-/api/auth/me GET Get Profile. (Header Token) { user: { id: 1, role: "STAFF", ... } }
-/api/user/account DELETE Xóa tài khoản. (Header Token) { scheduled_date: "2026-02-22" }
-/web/account/delete GET Web Form xóa (Google). (Browser) HTML Content
+1.5. DANH SÁCH API CHỨC NĂNG (V3 HARDENED)
+Hệ thống sử dụng Prefix `/v3/app/` cho mọi endpoint mới để đảm bảo tính Zero-Crash và Mock-Compatibility.
 
-NHÓM 3: NỘI DUNG & DANH SÁCH (CONTENT)
-Endpoint Method Mô tả Request Response Data
-/api/app/universal-list GET Lấy danh sách đa năng. ?type=NEWS { items: [...], meta: {...} }
-/api/app/detail/{id} GET Lấy chi tiết. ?type=NEWS { id: 1, content_html: "..." }
-
-NHÓM 4: HÀNH ĐỘNG & NGHIỆP VỤ (ACTION & HRM)
-Endpoint Method Mô tả Request Response Data
-/api/app/action POST Super Action. Xử lý Checkin, Report... { type: "CHECKIN", payload: { lat, long } } { success: true, message: "OK" }
-/api/media/upload POST Upload file. FormData { file } { file_id: "1", url: "..." }
-/api/app/sync POST Đồng bộ Offline. { actions: [...] } { synced_count: 5 }
-/api/hrm/status GET Trạng thái chấm công. (Header Token) { current_state: "IN", button_ui: {...} }
-/api/hrm/timesheet GET Lịch sử chấm công. ?month=01-2026 { logs: [...] }
+Endpoint | Method | Mô tả & Logic
+--- | --- | ---
+`/v3/app/bootstrap` | GET | Lấy config khởi động, version, force_update.
+`/v3/app/ui-layout` | GET | SDUI Engine: Trả về mảng layout các blocks.
+`/v3/app/login` | POST | Login v3: Trả về { token, user } chuẩn Envelope.
+`/v3/app/user` | GET | Lấy thông tin Profile của phiên đăng nhập hiện tại.
+`/v3/app/news-feed` | GET | Lấy danh sách bài viết mạng nội bộ (hỗ trợ phân trang).
+`/v3/app/checkin` | POST | Chấm công: Gửi ảnh, GPS và UUID định danh.
+`/v3/app/logs` | POST | Ghi log lỗi từ Client lên Server để debug (Zero-Crash report).
 
 1.3. CẤU TRÚC THƯ MỤC VẬT LÝ (DIRECTORY STRUCTURE)
 Cấu trúc này hỗ trợ Clean Architecture, tách biệt logic Mock/Real và SDUI.
 
 ````
+```
 mobile-app/
-├── app/                        # [Expo Router] File-based Routing (Chỉ chứa wrapper)
-│   ├── _layout.tsx             # Root Layout (Providers, Error Boundary)
-│   ├── (auth)/                 # Nhóm route xác thực
-│   │   ├── login.tsx           # Wrapper cho LoginScreen
-│   │   └── _layout.tsx
-│   ├── (main)/                 # Nhóm route chính
-│   │   ├── home.tsx            # Wrapper cho HomeScreen
-│   │   ├── profile.tsx
-│   │   └── _layout.tsx
-│   └── +not-found.tsx          # Trang 404 (Bắt buộc cho Deep Link)
+├── app/                        # [Expo Router] File-based Routing
+│   ├── (auth)/                 # Luồng đăng nhập
+│   ├── (main)/                 # Màn hình chính (index.tsx, checkin.tsx, crm.tsx...)
+│   └── _layout.tsx             # Root Layout (Sentry, Providers)
 ├── src/
-│   ├── core/
-│   │   ├── router/
-│   │   │   ├── routes.ts       # [QUAN TRỌNG] Registry định nghĩa toàn bộ Route
-│   │   │   └── navigator.ts    # [QUAN TRỌNG] Custom Hook điều hướng (Navigation Layer)
-│   │   ├── config.ts           # Env Config (API URL, Timeout)
-│   │   └── query-client.ts     # TanStack Query Client
-│   ├── data/                   # API calls
-│   ├── domain/                 # Types, Models
-│   ├── presentation/           # UI Logic thực tế
-│   │   ├── components/         # Reusable Components
-│   │   ├── screens/            # Code màn hình thật (LoginScreen, HomeScreen...)
-│   │   └── hooks/              # Custom Hooks
-│   └── services/               # Axios, Logger
+│   ├── components/             # UI Components (layout, ui, error, blocks)
+│   ├── config/                 # Env, API Endpoints, Query Client
+│   ├── core/                   # Logic cốt lõi (HardwareGuard, SDUI Engine, Storage)
+│   ├── domain/                 # Type definitions & Entities
+│   ├── hooks/                  # Custom Hooks (useScreenData, useNetworkStatus)
+│   ├── screens/                # UI Screens Logic thực tế
+│   ├── services/               # ApiClient, HardwareService, MediaService...
+│   ├── stores/                 # Zustand Stores (useAuthStore)
+│   └── utils/                  # Helpers & ActionRegistry
 ├── assets/                     # Fonts, Images
-├── app.json                    # Config Expo & Apple Privacy Manifest
-└── package.json
+└── app.json                    # Expo Config
+```
 
 ````
 
@@ -670,10 +630,10 @@ o Nếu code == 403 (Banned): Hiển thị Modal "Tài khoản bị khóa. Liên
 • Vấn đề: Trên Antigravity, bạn không thể mở App Google hay Apple để lấy identityToken.
 • Giải pháp Logic (AI Instruction):
 o Bước 1: Khi User bấm nút "Google Login".
-o Bước 2: Kiểm tra !Device.isDevice (Môi trường ảo).
- Nhánh Antigravity: KHÔNG gọi SDK Google. Thay vào đó, gọi thẳng API Login thường (AUTH-01) với tài khoản Test cứng (Ví dụ: user: <test_google@qv.com>, pass: 123).
- Tại sao? Vì chúng ta không thể tạo ra token Google thật để gửi cho Server thật verify. Cách duy nhất để test luồng "Sau khi login" là dùng tài khoản test.
- Nhánh Máy thật: Gọi SDK GoogleSignin.signIn(). Lấy idToken. Gửi lên API AUTH-02.
+o Bước 2: Kiểm tra cấu hình và môi trường.
+    - Nếu `Env.EXPO_PUBLIC_ENABLE_GOOGLE_AUTH === false`: Ẩn hoặc chặn nút Google Login (Dùng cho App Store Submission).
+    - Nếu `!Device.isDevice` (Môi trường ảo): KHÔNG gọi SDK Google. Thay vào đó, gọi thẳng API Login với tài khoản Test cứng.
+    - Nếu là Máy thật: Gọi SDK GoogleSignin.signIn(). Lấy idToken. Gửi lên API Auth endpoint.
 3. Logic Sinh trắc học (Biometrics)
 • Bước 1 - Kiểm tra phần cứng:
 o Gọi LocalAuthentication.hasHardwareAsync().
@@ -682,8 +642,8 @@ o Trên Máy thật: Trả về true -> Hiện nút vân tay.
 
 • Bước 2 - Xác thực:
 o Khi bấm nút -> Gọi authenticateAsync().
-o Nếu thành công -> Lấy Token từ SecureStore (đã lưu lần trước) -> Gọi API AUTH-06 (Get Profile) để vào App.
-o Lưu ý: Không bao giờ gửi vân tay lên Server. Server chỉ nhận Token.
+o Nếu thành công -> Lấy Token từ **StorageService.getItem('token')**.
+o Lưu ý: Không bao giờ gửi vân tay lên Server. Server chỉ nhận Token qua Header Authorization.
 4. Logic Tuân thủ Apple/Google (Compliance Logic)
 AI phải tự động chèn các đoạn code sau vào UI:
 • Privacy Policy Link:
@@ -776,8 +736,8 @@ o Code LoginScreen sử dụng GlassCard.
 o Thêm link Privacy Policy ở cuối màn hình (Dùng expo-web-browser).
 o Biometrics: Chỉ render nút vân tay nếu Device.isDevice === true VÀ hasHardware === true.
 11. State Management:
-o Setup useAuthStore (Zustand).
-o Khi Login thành công: Lưu Token vào SecureStore, User vào AsyncStore."
+o Setup `useAuthStore` (Zustand).
+o Khi Login thành công: Sử dụng `StorageService` để lưu Token (Secure) và User (AsyncStorage). Tự động xử lý fallback trên các môi trường Simulator/Web.
 12. Error Handling & Post-Login:
 o Global Logout: In apiClient.ts, add a response interceptor. If error.response.status === 401, execute useAuthStore.getState().logout() immediately to clear data and redirect to Login.
 o Permission Priming: After a successful login, check for Camera & Location permissions. If not granted, trigger a request dialog BEFORE navigating to the Home Screen. This prepares the app for the Attendance module.
@@ -798,16 +758,15 @@ Endpoint: POST /api/app/hrm/check-in
 
 ````
 export interface CheckInPayload {
-  uuid: string;         // BẮT BUỘC: UUID v4 (Sinh từ expo-crypto)
-  latitude: number;     // BẮT BUỘC: Ví dụ 10.762622
-  longitude: number;    // BẮT BUỘC: Ví dụ 106.660172
-  accuracy: number | null; // Độ chính xác GPS (mét). Backend dùng để cảnh báo nếu GPS quá yếu.
-  bssid: string | null; // Mac Address Wifi (Nếu lấy được)
-  is_mock: boolean;     // True nếu chạy trên Simulator hoặc phát hiện Fake GPS
-  device_info: {
-    model: string;      // "iPhone 15 Pro"
-    os: string;         // "iOS 17.2"
-  };
+{
+  "uuid": "string",         // BẮT BUỘC: UUID v4 (Unique per request)
+  "latitude": 10.7626,      // GPS Latitude
+  "longitude": 106.6601,    // GPS Longitude
+  "is_mock": false,         // True nếu phát hiện Fake GPS hoặc chạy trên Simulator
+  "device_info": {
+    "model": "iPhone 15",
+    "os": "iOS 17.2"
+  }
 }
 ````
 

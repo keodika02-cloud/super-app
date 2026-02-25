@@ -1,0 +1,19 @@
+Folder PATH listing for volume data2
+Volume serial number is 000000D9 5638:1482
+F:\PROJECT\APPQVC2026\APP
+|   +not-found.tsx
+|   _layout.tsx
+|   
++---(auth)
+|       login.tsx
+|       _layout.tsx
+|       
+\---(main)
+        checkin.tsx
+        crm.tsx
+        home.tsx
+        notifications.tsx
+        profile.tsx
+        tasks.tsx
+        _layout.tsx
+        

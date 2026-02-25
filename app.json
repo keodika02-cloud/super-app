@@ -1,30 +1,101 @@
 {
   "expo": {
-    "name": "appqvc2026",
-    "slug": "appqvc2026",
+    "name": "Quốc Việt App",
+    "slug": "quocviet-super-app",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "scheme": "quocvietapp",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#1E3A8A"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.qvc.quocvietsuperapp",
+      "infoPlist": {
+        "NSCameraUsageDescription": "App cần Camera để chụp ảnh xác nhận chấm công.",
+        "NSLocationWhenInUseUsageDescription": "App cần vị trí GPS để xác thực điểm chấm công.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "App cần vị trí GPS để xác thực điểm chấm công.",
+        "NSFaceIDUsageDescription": "Dùng Face ID để đăng nhập nhanh mà không cần nhập mật khẩu.",
+        "NSPhotoLibraryUsageDescription": "App cần truy cập thư viện ảnh để chọn ảnh đại diện hoặc đính kèm.",
+        "NSMicrophoneUsageDescription": "App cần Microphone cho tính năng ghi âm trong báo cáo.",
+        "NSContactsUsageDescription": "App không sử dụng danh bạ, được khai báo để đáp ứng yêu cầu Apple.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "config": {
+        "googleMapsApiKey": ""
+      }
     },
     "android": {
+      "package": "com.qvc.quocvietsuperapp",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#1E3A8A"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.POST_NOTIFICATIONS"
+      ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-web-browser",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "App cần Camera để chụp ảnh xác nhận chấm công."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "App cần vị trí GPS để xác thực điểm chấm công.",
+          "locationWhenInUsePermission": "App cần vị trí GPS để xác thực điểm chấm công."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "App cần truy cập thư viện ảnh để đính kèm vào báo cáo."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#1E3A8A",
+          "sounds": []
+        }
+      ],
+      "expo-secure-store",
+      "expo-local-authentication",
+      "@sentry/react-native"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "YOUR_EAS_PROJECT_ID"
+      }
     }
   }
 }
