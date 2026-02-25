@@ -35,14 +35,16 @@ export function useHybridData<T>({
     const [status, setStatus] = useState<DataStatus>('loading_cache');
     const [isRefreshing, setIsRefreshing] = useState(false);
 
-    // Lưu callbacks vào ref để tránh infinite loop khi component cha truyền unmemoized inline functions
+    // Lưu callbacks và fallback vào ref để tránh infinite loop khi component cha truyền unmemoized inline values/functions
     const fetchApiRef = useRef(fetchApi);
     const isValidDataRef = useRef(isValidData);
+    const fallbackRef = useRef(hardcodedFallback);
 
     useEffect(() => {
         fetchApiRef.current = fetchApi;
         isValidDataRef.current = isValidData;
-    }, [fetchApi, isValidData]);
+        fallbackRef.current = hardcodedFallback;
+    }, [fetchApi, isValidData, hardcodedFallback]);
 
     const loadData = useCallback(async (isManualRefresh = false) => {
         if (isManualRefresh) {
@@ -55,8 +57,11 @@ export function useHybridData<T>({
                 setStatus('loading_cache');
                 const cachedData = await StorageService.getConfig<T | null>(cacheKey, null);
                 if (cachedData && isValidDataRef.current(cachedData)) {
+                    console.log(`[HybridData] 📦 CACHE_HIT for ${cacheKey}. Initial render with saved data.`);
                     setData(cachedData);
                     setStatus('success_cache');
+                } else {
+                    console.log(`[HybridData] 💨 CACHE_MISS for ${cacheKey}.`);
                 }
             }
 
@@ -67,36 +72,42 @@ export function useHybridData<T>({
             // Check if API data is valid
             if (isValidDataRef.current(apiData)) {
                 // Step 3a: Success - update state and save to cache
+                console.log(`[HybridData] 🔄 SYNC_SUCCESS for ${cacheKey}. Fresh data from server.`);
                 setData(apiData);
                 setStatus('success_api');
                 await StorageService.saveConfig(cacheKey, apiData);
             } else {
                 // Step 3b: API data invalid - fallback if we don't already have valid cached data
-                console.warn(`[useHybridData] API data for ${cacheKey} is invalid or insufficient.`);
+                console.warn(`[HybridData] ⚠️ API_DATA_INVALID for ${cacheKey}. Decisioning fallback...`);
                 setStatus((prevStatus) => {
-                    if (prevStatus !== 'success_cache') {
-                        setData(hardcodedFallback);
+                    if (prevStatus !== 'success_cache' && prevStatus !== 'success_api') {
+                        console.error(`[HybridData] 🚨 EMERGENCY_FALLBACK for ${cacheKey}. Rendering hardcoded layout.`);
+                        setData(fallbackRef.current);
                         return 'fallback_hardcoded';
                     }
+                    console.log(`[HybridData] 🛡️ SHIELDED: API failed but we kept the Good Cache for ${cacheKey}.`);
                     return prevStatus;
                 });
             }
-        } catch (error) {
-            console.error(`[useHybridData] Error fetching ${cacheKey}:`, error);
+        } catch (error: any) {
+            console.error(`[HybridData] ❌ API_FETCH_ERROR for ${cacheKey}:`, error.message);
             // On error, fallback if we don't have valid cache
             setStatus((prevStatus) => {
-                if (prevStatus !== 'success_cache') {
-                    setData(hardcodedFallback);
+                if (prevStatus !== 'success_cache' && prevStatus !== 'success_api') {
+                    console.error(`[HybridData] 🚨 EMERGENCY_FALLBACK for ${cacheKey}. Rendering hardcoded layout.`);
+                    setData(fallbackRef.current);
                     return 'fallback_hardcoded';
                 }
+                console.log(`[HybridData] 🛡️ SHIELDED: Network error but we kept the Good Cache for ${cacheKey}.`);
                 return prevStatus;
             });
         } finally {
             if (isManualRefresh) {
+                console.log(`[HybridData] 🏁 Manual refresh completed for ${cacheKey}.`);
                 setIsRefreshing(false);
             }
         }
-    }, [cacheKey, hardcodedFallback]);
+    }, [cacheKey]);
 
     useEffect(() => {
         loadData();

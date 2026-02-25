@@ -19,8 +19,9 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ visible, onClo
     const createPostMutation = useMutation({
         mutationFn: async (text: string) => {
             return await ApiClient.fetchSafe(
-                API_ENDPOINTS.V3.APP.NEWS_FEED,
-                { method: 'POST', body: JSON.stringify({ content: text, images: [] }) }
+                { ...API_ENDPOINTS.V3.APP.NEWS_FEED },
+                { content: text, images: [] },
+                'POST'
             );
         },
         onSuccess: () => {

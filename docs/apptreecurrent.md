@@ -1,6 +1,6 @@
 # 📁 App Tree – QVC Super App
 
-> Auto-generated luc: 25/02/2026  8:42:22,72
+> Auto-generated luc: 25/02/2026 16:05:50,21
 > Project: `F:\project\appqvc2026`
 
 ---
@@ -9,14 +9,37 @@
 
 ```
 Folder PATH listing for volume data2
-Volume serial number is 000000AD 5638:1482
+Volume serial number is 00000042 5638:1482
 F:\PROJECT\APPQVC2026\SRC
 +---components
+|   +---blocks
+|   |       BannerBlock.tsx
+|   |       CameraBlock.tsx
+|   |       CommentBlock.tsx
+|   |       FeedActionBlock.tsx
+|   |       GpsBlock.tsx
+|   |       GridMenuBlock.tsx
+|   |       HtmlBlock.tsx
+|   |       ImageBlock.tsx
+|   |       PostComposerBlock.tsx
+|   |       ProfileHeaderBlock.tsx
+|   |       SduiEngine.tsx
+|   |       SocialFeedBlock.tsx
+|   |       StoryBlock.tsx
+|   |       SummaryCardBlock.tsx
+|   |       UnknownBlock.tsx
+|   |       UploadBlock.tsx
+|   |       
 |   +---error
+|   |       BlockBoundary.tsx
 |   |       ErrorBoundary.tsx
 |   |       
 |   +---layout
+|   |       SafeScreen.tsx
 |   |       ScreenWrapper.tsx
+|   |       
+|   +---modals
+|   |       CreatePostModal.tsx
 |   |       
 |   \---ui
 |           AppButton.tsx
@@ -28,6 +51,7 @@ F:\PROJECT\APPQVC2026\SRC
 |       env.ts
 |       query-client.ts
 |       query-keys.ts
+|       ScreenConfigs.ts
 |       
 +---core
 |   |   query-client.ts
@@ -50,6 +74,8 @@ F:\PROJECT\APPQVC2026\SRC
 |           auth.types.ts
 |           
 +---hooks
+|       useHybridData.ts
+|       useNavigation.ts
 |       useScreenData.ts
 |       
 +---screens
@@ -65,6 +91,7 @@ F:\PROJECT\APPQVC2026\SRC
 |       HardwareService.ts
 |       MediaService.ts
 |       NotificationService.ts
+|       SocketService.ts
 |       StorageService.ts
 |       
 +---stores
@@ -84,7 +111,7 @@ F:\PROJECT\APPQVC2026\SRC
 
 ```
 Folder PATH listing for volume data2
-Volume serial number is 0000004B 5638:1482
+Volume serial number is 00000001 5638:1482
 F:\PROJECT\APPQVC2026\APP
 |   +not-found.tsx
 |   _layout.tsx
@@ -94,11 +121,14 @@ F:\PROJECT\APPQVC2026\APP
 |       _layout.tsx
 |       
 \---(main)
+        chat.tsx
         checkin.tsx
         crm.tsx
         index.tsx
+        more.tsx
         notifications.tsx
         profile.tsx
+        reports.tsx
         tasks.tsx
         _layout.tsx
         
@@ -109,14 +139,17 @@ F:\PROJECT\APPQVC2026\APP
 ```
 apptreecurrent.md
 AUDIT_REPORT.md
+AUDIT_SYSTEM_V3.md
+BACKEND_CONTROL_GUIDE.md
 BUILD_AND_TEST_GUIDE.md
-CODE_REVIEW_2026.md
 CODE_STRUCTURE_AND_SDUI_SYNC.md
 Danh_Sach_API.md
 EXPO_BUILD_WINDOWS.md
 Ho_so_thiet_ke_he_thong.md
-SDUI_100_PERCENT_SYNC_STRATEGY.md
+POLYMORPHIC_INTERACTION_SYSTEM.md
 SDUI_ARCHITECTURE.md
+SDUI_CONTROL_STRUCTURE.json
+SYSTEM_OVERVIEW.md
 ```
 
 ## 📄 Root Config Files
@@ -136,6 +169,7 @@ index.ts
 metro.config.js.bak
 package-lock.json
 package.json
+REAL_DATA_MAPPING.md
 tailwind.config.js
 temp_app.txt
 temp_docs.txt
@@ -149,8 +183,8 @@ tsconfig.json
  
 | Muc | So luong | 
 |---|---| 
-| TypeScript files (src/ + app/) | 44 | 
-| Core Services | 6 | 
+| TypeScript files (src/ + app/) | 70 | 
+| Core Services | 7 | 
  
 --- 
  

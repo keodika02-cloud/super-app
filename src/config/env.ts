@@ -11,7 +11,16 @@ const envSchema = z.object({
 
     EXPO_PUBLIC_CRM_URL: z
         .string()
-        .url({ message: '❌ EXPO_PUBLIC_CRM_URL phải là URL hợp lệ (vd: https://crm.maytinhquocviet.com)' }),
+        .url({ message: '❌ EXPO_PUBLIC_CRM_URL phải là URL hợp lệ' }),
+
+    EXPO_PUBLIC_CHAT_API_URL: z
+        .string()
+        .url({ message: '❌ EXPO_PUBLIC_CHAT_API_URL phải là URL hợp lệ' }),
+
+    EXPO_PUBLIC_CHAT_SOCKET_URL: z.string(),
+    EXPO_PUBLIC_CHAT_REVERB_KEY: z.string(),
+    EXPO_PUBLIC_CHAT_REVERB_PORT: z.string().transform(Number),
+    EXPO_PUBLIC_CHAT_REVERB_SCHEME: z.enum(['http', 'https']).default('https'),
 
     EXPO_PUBLIC_API_TIMEOUT: z.string().optional().default('30000').transform(Number),
     EXPO_PUBLIC_APP_VERSION: z.string().optional().default('1.0.0'),

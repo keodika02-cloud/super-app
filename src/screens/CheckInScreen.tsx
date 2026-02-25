@@ -109,7 +109,7 @@ export function CheckInScreen() {
                 } as any);
             }
 
-            return ApiClient.uploadFormDataSafe(API_ENDPOINTS.V3.APP.CHECKIN_SUBMIT, formData);
+            return ApiClient.uploadFormData(API_ENDPOINTS.V3.APP.CHECKIN_SUBMIT.path, formData);
         },
         networkMode: 'offlineFirst',
         onSuccess: () => {

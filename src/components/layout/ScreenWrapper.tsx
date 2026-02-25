@@ -33,28 +33,30 @@ export function ScreenWrapper({
     const isOffline = netInfo.isConnected === false;
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor }}>
-            <StatusBar barStyle="light-content" backgroundColor={backgroundColor} />
+        <View style={{ flex: 1, backgroundColor }}>
+            <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
+                <StatusBar barStyle="light-content" translucent />
 
-            {/* Offline Banner */}
-            {showOfflineBanner && isOffline && (
-                <View
-                    style={{
-                        backgroundColor: '#f97316',
-                        paddingVertical: 6,
-                        paddingHorizontal: 16,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                    }}
-                >
-                    <Text style={{ color: '#fff', fontWeight: '600', fontSize: 13 }}>
-                        📵 Đang ngoại tuyến – Một số tính năng bị giới hạn
-                    </Text>
-                </View>
-            )}
+                {/* Offline Banner */}
+                {showOfflineBanner && isOffline && (
+                    <View
+                        style={{
+                            backgroundColor: '#f97316',
+                            paddingVertical: 6,
+                            paddingHorizontal: 16,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                        }}
+                    >
+                        <Text style={{ color: '#fff', fontWeight: '600', fontSize: 13 }}>
+                            📵 Đang ngoại tuyến – Một số tính năng bị giới hạn
+                        </Text>
+                    </View>
+                )}
 
-            <View style={[{ flex: 1 }, style]}>{children}</View>
-        </SafeAreaView>
+                <View style={[{ flex: 1 }, style]}>{children}</View>
+            </SafeAreaView>
+        </View>
     );
 }

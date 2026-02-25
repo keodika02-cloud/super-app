@@ -1,22 +1,21 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { safeArray, safeStr } from '../../../src/utils/safe';
-import { ActionRegistry } from '../../../src/utils/ActionRegistry';
+import { ActionRegistry } from '../../utils/ActionRegistry';
 
 export const GridMenuBlock = ({ data }: { data: any }) => (
     <View style={styles.gridSection}>
-        {data.title && <Text style={styles.sectionTitle}>{safeStr(data.title)}</Text>}
+        {data.title && <Text style={styles.sectionTitle}>{data.title}</Text>}
         <View style={styles.gridContainer}>
-            {safeArray(data.items).map((item: any, idx: number) => (
+            {(data.items || []).map((item: any, idx: number) => (
                 <TouchableOpacity
                     key={idx}
                     style={styles.gridItem}
                     onPress={() => ActionRegistry.execute(item.action)}
                 >
                     <View style={[styles.iconWrapper, item.bg_color && { backgroundColor: item.bg_color }]}>
-                        <Text style={styles.gridIcon}>{safeStr(item.icon, '❓')}</Text>
+                        <Text style={styles.gridIcon}>{item.icon || '❓'}</Text>
                     </View>
-                    <Text style={styles.gridLabel}>{safeStr(item.label)}</Text>
+                    <Text style={styles.gridLabel}>{item.label}</Text>
                 </TouchableOpacity>
             ))}
         </View>

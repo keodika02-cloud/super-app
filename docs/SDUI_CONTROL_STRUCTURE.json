@@ -1,0 +1,123 @@
+{
+    "screen_title": "Báo cáo Công việc Hiện trường",
+    "screen_slug": "task_detail_view",
+    "layout": [
+        {
+            "id": "header_01",
+            "type": "ProfileHeaderBlock",
+            "data": {
+                "greeting": "Chào buổi sáng",
+                "company_name": "QVC TECHNOLOGY HUB",
+                "company_action": "OPEN_COMPANY_PROFILE"
+            }
+        },
+        {
+            "id": "banner_alert",
+            "type": "BannerBlock",
+            "data": {
+                "title": "Công việc Ưu tiên Cao",
+                "subtitle": "Bảo trì máy chủ trung tâm dữ liệu QVC",
+                "action_label": "Xem bản đồ hướng dẫn 📍",
+                "action": "OPEN_MAP_DIRECTION"
+            }
+        },
+        {
+            "id": "task_info",
+            "type": "SummaryCardBlock",
+            "data": {
+                "title": "Thông tin nhiệm vụ #2026",
+                "subtitle": "Cập nhật lúc 09:00",
+                "show_refresh": true,
+                "stats": [
+                    {
+                        "label": "Trạng thái",
+                        "value": "Đang thực hiện 🟡"
+                    },
+                    {
+                        "label": "Thời hạn",
+                        "value": "15:00 Chiều nay"
+                    },
+                    {
+                        "label": "Người giao",
+                        "value": "Quản lý Dự án"
+                    }
+                ]
+            }
+        },
+        {
+            "id": "gps_verify",
+            "type": "GpsBlock",
+            "data": {
+                "label": "Xác nhận có mặt tại điểm bảo trì",
+                "auto_refresh": true
+            }
+        },
+        {
+            "id": "desc_html",
+            "type": "HtmlBlock",
+            "data": {
+                "height": 150,
+                "html": "<div style='border-left: 4px solid #3b82f6; padding-left: 10px;'><h3>Hướng dẫn kỹ thuật:</h3><ul><li>Kiểm tra nguồn điện 220V</li><li>Vệ sinh lọc bụi</li><li>Checklist 5 bước theo tiêu chuẩn ISO</li></ul></div>",
+                "css": "h3 { color: #1e3a8a; margin-top: 0; } li { font-size: 14px; margin-bottom: 5px; }"
+            }
+        },
+        {
+            "id": "camera_evidence",
+            "type": "CameraBlock",
+            "data": {
+                "label": "Chụp ảnh hiện trạng (Trước khi làm)",
+                "id_key": "photo_before",
+                "context_type": "TASK_EVIDENCE",
+                "context_id": "2026",
+                "required": true,
+                "description": "Yêu cầu chụp rõ số sê-ri thiết bị"
+            }
+        },
+        {
+            "id": "file_upload",
+            "type": "UploadBlock",
+            "data": {
+                "label": "Đính kèm Biên bản Bàn giao",
+                "context_type": "TASK_DOCS",
+                "context_id": "2026",
+                "max_size_mb": 15
+            }
+        },
+        {
+            "id": "discussion",
+            "type": "CommentBlock",
+            "data": {
+                "context_type": "TASK_LOG",
+                "context_id": "2026",
+                "placeholder": "Nhập báo cáo nhanh hoặc ghi chú lỗi..."
+            }
+        },
+        {
+            "id": "quick_actions",
+            "type": "GridMenuBlock",
+            "data": {
+                "title": "Tiện ích hỗ trợ",
+                "items": [
+                    {
+                        "label": "Gọi Hotline",
+                        "icon": "📞",
+                        "action": "CALL_SUPPORT",
+                        "bg_color": "#ecfdf5"
+                    },
+                    {
+                        "label": "Tra cứu Wiki",
+                        "icon": "📖",
+                        "action": "OPEN_WIKI",
+                        "bg_color": "#fff7ed"
+                    },
+                    {
+                        "label": "Báo sự cố",
+                        "icon": "⚠️",
+                        "action": "REPORT_ISSUE",
+                        "bg_color": "#fef2f2"
+                    }
+                ]
+            }
+        }
+    ]
+}

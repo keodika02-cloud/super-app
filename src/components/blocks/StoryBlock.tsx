@@ -1,10 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
-import { safeArray, safeStr } from '../../../src/utils/safe';
 
 export const StoryBlock = ({ data }: { data: any }) => (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyContent}>
-        {safeArray(data.items).map((item: any, idx: number) => (
+        {(data.items || []).map((item: any, idx: number) => (
             <TouchableOpacity key={idx} style={styles.storyItem}>
                 <View style={[styles.storyAvatarWrap, !item.is_seen && styles.storyUnseen]}>
                     <View style={styles.storyAvatarInner}>
@@ -15,7 +14,7 @@ export const StoryBlock = ({ data }: { data: any }) => (
                         )}
                     </View>
                 </View>
-                <Text style={styles.storyLabel} numberOfLines={1}>{safeStr(item.label)}</Text>
+                <Text style={styles.storyLabel} numberOfLines={1}>{item.label}</Text>
             </TouchableOpacity>
         ))}
     </ScrollView>

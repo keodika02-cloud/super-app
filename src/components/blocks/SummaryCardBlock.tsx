@@ -1,21 +1,20 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { safeArray, safeStr } from '../../../src/utils/safe';
 
 export const SummaryCardBlock = ({ data }: { data: any }) => (
     <View style={styles.summaryCard}>
         <View style={styles.summaryHeader}>
             <View>
-                <Text style={styles.summaryTitle}>{safeStr(data.title)}</Text>
-                <Text style={styles.summarySubtitle}>{safeStr(data.subtitle)}</Text>
+                <Text style={styles.summaryTitle}>{data.title}</Text>
+                <Text style={styles.summarySubtitle}>{data.subtitle}</Text>
             </View>
-            <TouchableOpacity><Text style={styles.refreshIcon}>🔄</Text></TouchableOpacity>
+            {data.show_refresh && <TouchableOpacity><Text style={styles.refreshIcon}>🔄</Text></TouchableOpacity>}
         </View>
         <View style={styles.summaryBody}>
-            {safeArray(data.stats).map((stat: any, idx: number) => (
+            {(data.stats || []).map((stat: any, idx: number) => (
                 <View key={idx} style={styles.statRow}>
-                    <Text style={styles.statLabel}>{safeStr(stat.label)}:</Text>
-                    <Text style={styles.statValue}>{safeStr(stat.value)}</Text>
+                    <Text style={styles.statLabel}>{stat.label}:</Text>
+                    <Text style={styles.statValue}>{stat.value}</Text>
                 </View>
             ))}
         </View>

@@ -1,28 +1,30 @@
-/**
- * src/screens/ProfileScreen.tsx
- * Hồ sơ người dùng – Apple required: có nút Xóa tài khoản.
- */
-import React, { useState } from 'react';
-import { View, Text, ScrollView, Image, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch, Alert, Image, Share, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-
-import { useAuthStore } from '@stores/useAuthStore';
-import { ApiClient, ApiError } from '@services/ApiClient';
-import { ScreenWrapper } from '@components/layout/ScreenWrapper';
-import { GlassCard } from '@components/ui/GlassCard';
-import { AppButton } from '@components/ui/AppButton';
-import { API_ENDPOINTS } from '../config/api-endpoints';
+import * as Application from 'expo-application';
+import { useAuthStore } from '../../src/stores/useAuthStore';
+import { ApiClient } from '../../src/services/ApiClient';
+import { API_ENDPOINTS } from '../../src/config/api-endpoints';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export function ProfileScreen() {
     const { user, logout } = useAuthStore();
     const router = useRouter();
-    const [deletingAcc, setDeletingAcc] = useState(false);
+    const [isBiometricEnabled, setIsBiometricEnabled] = useState(false);
+    const [appVersion, setAppVersion] = useState('1.0.0');
     const [loggingOut, setLoggingOut] = useState(false);
+    const [deletingAcc, setDeletingAcc] = useState(false);
 
-    // Logout
+    useEffect(() => {
+        // Lấy version thật của app
+        if (Application.nativeApplicationVersion) {
+            setAppVersion(Application.nativeApplicationVersion);
+        }
+    }, []);
+
     const handleLogout = async () => {
-        Alert.alert('Đăng xuất', 'Bạn có chắc muốn đăng xuất?', [
+        Alert.alert('Đăng xuất', 'Bạn có chắc chắn muốn đăng xuất?', [
             { text: 'Hủy', style: 'cancel' },
             {
                 text: 'Đăng xuất', style: 'destructive', onPress: async () => {
@@ -30,117 +32,201 @@ export function ProfileScreen() {
                     await logout();
                     router.replace('/(auth)/login');
                     setLoggingOut(false);
-                },
-            },
+                }
+            }
         ]);
     };
 
-    // Xóa tài khoản (BẮTBUỘC Apple) – 2-step confirmation
     const handleDeleteAccount = () => {
         Alert.alert(
             '⚠️ Xóa tài khoản',
-            'Thao tác này sẽ xóa vĩnh viễn tài khoản và tất cả dữ liệu của bạn. Không thể khôi phục.',
+            'Thao tác này sẽ xóa vĩnh viễn tài khoản và tất cả dữ liệu. Không thể khôi phục.',
             [
                 { text: 'Hủy', style: 'cancel' },
                 {
                     text: 'Xác nhận xóa', style: 'destructive',
-                    onPress: () => {
-                        Alert.alert(
-                            'Xác nhận lần cuối',
-                            'Nhấn "Xóa tài khoản" để xác nhận. Tài khoản sẽ bị xóa trong 30 ngày.',
-                            [
-                                { text: 'Quay lại', style: 'cancel' },
-                                {
-                                    text: 'Xóa tài khoản', style: 'destructive',
-                                    onPress: async () => {
-                                        setDeletingAcc(true);
-                                        try {
-                                            await ApiClient.fetchSafe(API_ENDPOINTS.AUTH.PROFILE.DELETE_ACCOUNT, undefined, 'DELETE');
-                                            await logout();
-                                            router.replace('/(auth)/login');
-                                        } catch (err) {
-                                            const msg = err instanceof ApiError ? err.message : 'Có lỗi xảy ra. Vui lòng liên hệ admin.';
-                                            Alert.alert('Không thể xóa tài khoản', msg);
-                                        } finally {
-                                            setDeletingAcc(false);
-                                        }
-                                    },
-                                },
-                            ],
-                        );
-                    },
-                },
-            ],
+                    onPress: async () => {
+                        setDeletingAcc(true);
+                        try {
+                            await ApiClient.fetchSafe(API_ENDPOINTS.AUTH.PROFILE.DELETE_ACCOUNT, undefined, 'DELETE');
+                            await logout();
+                            router.replace('/(auth)/login');
+                            Alert.alert('Thành công', 'Tài khoản đã được xóa.');
+                        } catch (err: any) {
+                            Alert.alert('Lỗi', err.message || 'Không thể xóa tài khoản lúc này.');
+                        } finally {
+                            setDeletingAcc(false);
+                        }
+                    }
+                }
+            ]
         );
     };
 
+    const handleShareApp = async () => {
+        try {
+            await Share.share({
+                message: 'Tuyệt vời! Hãy tải ngay Ứng dụng QVC 2026 để trải nghiệm: https://crm.maytinhquocviet.com/download',
+            });
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    const openLink = async (url: string) => {
+        if (!url) return;
+        try {
+            await WebBrowser.openBrowserAsync(url);
+        } catch (e) {
+            Alert.alert('Lỗi', 'Không thể mở liên kết');
+        }
+    };
+
+    const menuItems = [
+        { id: 'password', icon: '🔒', label: 'Đổi mật khẩu', action: () => Alert.alert('Tính năng', 'Sắp ra mắt trong phiên bản sau.') },
+        { id: 'biometric', icon: '👤', label: 'Xác thực sinh trắc học', hasSwitch: true },
+        { id: 'share', icon: '🔗', label: 'Chia sẻ với bạn bè', action: handleShareApp },
+        { id: 'rate', icon: '⭐', label: 'Đánh giá ứng dụng', action: () => Alert.alert('Cảm ơn', 'Cảm ơn bạn đã đánh giá!') },
+        { id: 'policy', icon: '📄', label: 'Chính sách & Điều khoản', action: () => openLink(API_ENDPOINTS.PUBLIC?.TERMS || 'https://crm.maytinhquocviet.com/privacy') },
+        { id: 'version', icon: 'ℹ️', label: 'Phiên bản hiện tại', rightText: appVersion },
+        { id: 'theme', icon: '🎨', label: 'Đổi giao diện', action: () => Alert.alert('Giao diện', 'Hệ thống đang sử dụng giao diện Sáng mặc định.') },
+        { id: 'wallpaper', icon: '🖼️', label: 'Cài đặt hình nền', action: () => Alert.alert('Hình nền', 'Sắp ra mắt tính năng đổi hình nền.') },
+        { id: 'history', icon: '🧾', label: 'Xem lịch sử thanh toán', action: () => Alert.alert('Lịch sử', 'Tính năng đang được tích hợp với module Kế toán Ecount.') },
+        { id: 'info', icon: 'ℹ', label: 'Thông tin chung', action: () => Alert.alert('Thông tin', `Tài khoản: ${user?.name}\nPhòng ban: ${user?.dept_name || 'N/A'}`) },
+        { id: 'guide', icon: '📖', label: 'Hướng dẫn sử dụng', action: () => openLink('https://crm.maytinhquocviet.com/docs') },
+        { id: 'logout', icon: '🚪', label: 'Đăng xuất', action: handleLogout, isLogout: true },
+    ];
+
+    if (!user) {
+        return (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+                <Text style={{ fontSize: 16, color: '#64748b' }}>Đang tải thông tin...</Text>
+            </View>
+        );
+    }
+
     return (
-        <ScreenWrapper>
-            <ScrollView contentContainerStyle={{ padding: 20 }}>
-                <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800', marginBottom: 20 }}>Hồ sơ</Text>
-
-                {/* Avatar & Name */}
-                <GlassCard style={{ alignItems: 'center', marginBottom: 20 }}>
-                    {user?.avatar ? (
-                        <Image source={{ uri: user.avatar }} style={{ width: 80, height: 80, borderRadius: 40, marginBottom: 12 }} />
-                    ) : (
-                        <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-                            <Text style={{ fontSize: 36 }}>👤</Text>
-                        </View>
-                    )}
-                    <Text style={{ color: '#fff', fontSize: 20, fontWeight: '700' }}>{user?.name ?? '–'}</Text>
-                    <Text style={{ color: '#94a3b8', fontSize: 14, marginTop: 4 }}>{user?.email ?? '–'}</Text>
-                    <View style={{ marginTop: 8, backgroundColor: 'rgba(37,99,235,0.2)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 4 }}>
-                        <Text style={{ color: '#93c5fd', fontSize: 13, fontWeight: '600' }}>{user?.role ?? '–'}</Text>
+        <View style={styles.container}>
+            <LinearGradient colors={['#e0f2fe', '#bae6fd']} style={styles.headerGradient}>
+                <View style={styles.profileHeader}>
+                    <View style={styles.avatarContainer}>
+                        {user?.avatar ? (
+                            <Image source={{ uri: user.avatar }} style={styles.avatarImg} />
+                        ) : (
+                            <Text style={styles.avatarText}>{user?.name?.charAt(0)?.toUpperCase() || 'M'}</Text>
+                        )}
                     </View>
-                </GlassCard>
+                    <Text style={styles.phoneText}>{user?.phone || '0906269456'}</Text>
 
-                {/* Info */}
-                <GlassCard style={{ marginBottom: 20 }}>
-                    {[
-                        { label: 'Phòng ban', value: user?.dept_name ?? '–' },
-                        { label: 'Chức vụ', value: user?.hrm_info?.job_title ?? '–' },
-                        { label: 'Mã nhân viên', value: user?.hrm_info?.employee_code ?? '–' },
-                        { label: 'Trạng thái', value: user?.status === 'ACTIVE' ? '✅ Đang hoạt động' : '⚠️ ' + user?.status },
-                    ].map(({ label, value }) => (
-                        <View key={label} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' }}>
-                            <Text style={{ color: '#94a3b8', fontSize: 14 }}>{label}</Text>
-                            <Text style={{ color: '#e2e8f0', fontSize: 14, fontWeight: '500', maxWidth: '60%', textAlign: 'right' }}>{value}</Text>
-                        </View>
+                    <TouchableOpacity style={styles.addAccountBtn}>
+                        <Text style={styles.addAccountTxt}>+ Thêm tài khoản</Text>
+                    </TouchableOpacity>
+                </View>
+            </LinearGradient>
+
+            <View style={styles.menuContainer}>
+                <Text style={styles.menuTitle}>Cài đặt tài khoản</Text>
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+                    {menuItems.map((item) => (
+                        <TouchableOpacity
+                            key={item.id}
+                            style={styles.menuItem}
+                            onPress={item.action}
+                            disabled={item.hasSwitch || (!item.action && !item.isLogout)}
+                        >
+                            <View style={styles.menuItemLeft}>
+                                <Text style={styles.menuIcon}>{item.icon}</Text>
+                                <Text style={[styles.menuLabel, item.isLogout && { color: '#ef4444' }]}>{item.label}</Text>
+                            </View>
+
+                            {item.hasSwitch ? (
+                                <Switch
+                                    value={isBiometricEnabled}
+                                    onValueChange={setIsBiometricEnabled}
+                                    trackColor={{ false: '#e2e8f0', true: '#bae6fd' }}
+                                    thumbColor={isBiometricEnabled ? '#3b82f6' : '#f8fafc'}
+                                />
+                            ) : item.rightText ? (
+                                <Text style={styles.rightText}>{item.rightText}</Text>
+                            ) : null}
+                        </TouchableOpacity>
                     ))}
-                </GlassCard>
 
-                {/* Privacy Policy – Apple require */}
-                <AppButton
-                    label="📋 Chính sách Riêng tư"
-                    onPress={() => WebBrowser.openBrowserAsync('https://crm.maytinhquocviet.com/privacy')}
-                    variant="outline"
-                    fullWidth
-                    style={{ marginBottom: 12 }}
-                />
+                    <TouchableOpacity style={[styles.menuItem, { borderBottomWidth: 0, marginTop: 12 }]} onPress={handleDeleteAccount} disabled={deletingAcc}>
+                        <View style={styles.menuItemLeft}>
+                            <Text style={styles.menuIcon}>🗑️</Text>
+                            <Text style={[styles.menuLabel, { color: '#ef4444' }]}>{deletingAcc ? 'Đang xóa...' : 'Xóa tài khoản'}</Text>
+                        </View>
+                    </TouchableOpacity>
 
-                {/* Logout */}
-                <AppButton
-                    label="Đăng xuất"
-                    onPress={handleLogout}
-                    loading={loggingOut}
-                    variant="outline"
-                    fullWidth
-                    style={{ marginBottom: 24 }}
-                />
-
-                {/* Xóa tài khoản – ĐỎ, cuối trang (Apple bắt buộc) */}
-                <AppButton
-                    label="🗑️ Xóa tài khoản"
-                    onPress={handleDeleteAccount}
-                    loading={deletingAcc}
-                    variant="danger"
-                    fullWidth
-                />
-                <Text style={{ color: '#64748b', fontSize: 12, textAlign: 'center', marginTop: 8 }}>
-                    Xóa tài khoản vĩnh viễn sau 30 ngày
-                </Text>
-            </ScrollView>
-        </ScreenWrapper>
+                </ScrollView>
+            </View>
+        </View>
     );
 }
+
+const styles = StyleSheet.create({
+    container: { flex: 1, backgroundColor: '#f1f5f9' },
+    headerGradient: {
+        paddingTop: 60,
+        paddingBottom: 40,
+        alignItems: 'center',
+    },
+    profileHeader: {
+        alignItems: 'center',
+    },
+    avatarContainer: {
+        width: 72,
+        height: 72,
+        borderRadius: 36,
+        backgroundColor: '#2563eb',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 12,
+        shadowColor: '#3b82f6',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 5,
+    },
+    avatarImg: { width: '100%', height: '100%', borderRadius: 36 },
+    avatarText: { fontSize: 32, fontWeight: 'bold', color: '#fff' },
+    phoneText: { fontSize: 15, color: '#475569', marginBottom: 16 },
+    addAccountBtn: {
+        borderWidth: 1.5,
+        borderColor: '#3b82f6',
+        borderRadius: 20,
+        paddingVertical: 6,
+        paddingHorizontal: 16,
+        backgroundColor: 'rgba(255,255,255,0.5)',
+    },
+    addAccountTxt: { color: '#3b82f6', fontWeight: '600', fontSize: 14 },
+    menuContainer: {
+        flex: 1,
+        backgroundColor: '#fff',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        marginTop: -20,
+        paddingTop: 24,
+        paddingHorizontal: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+        elevation: 3,
+    },
+    menuTitle: { fontSize: 16, fontWeight: '700', color: '#0f172a', marginBottom: 16 },
+    scrollContent: { paddingBottom: 40 },
+    menuItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 14,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f8fafc',
+    },
+    menuItemLeft: { flexDirection: 'row', alignItems: 'center' },
+    menuIcon: { fontSize: 20, width: 32 },
+    menuLabel: { fontSize: 15, color: '#1e293b' },
+    rightText: { fontSize: 13, color: '#cbd5e1' },
+});

@@ -1,12 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
-import { useAuthStore } from '../../../src/stores/useAuthStore';
-import { safeStr } from '../../../src/utils/safe';
-import { ActionRegistry } from '../../../src/utils/ActionRegistry';
-import { ApiClient } from '../../../src/services/ApiClient';
+import { useAuthStore } from '../../stores/useAuthStore';
 import { CreatePostModal } from '../modals/CreatePostModal';
 
-export const PostComposerBlock = ({ data, refetchFeed }: { data: any; refetchFeed?: () => void }) => {
+export const PostComposerBlock = ({ data }: { data: any }) => {
     const { user } = useAuthStore();
     const [isModalVisible, setModalVisible] = React.useState(false);
 
@@ -17,11 +14,11 @@ export const PostComposerBlock = ({ data, refetchFeed }: { data: any; refetchFee
                     {user?.avatar ? (
                         <Image source={{ uri: user.avatar }} style={styles.avatarImg} />
                     ) : (
-                        <Text style={{ fontSize: 18 }}>👤</Text>
+                        <View style={styles.avatarPlaceholder}><Text style={{ fontSize: 20 }}>👤</Text></View>
                     )}
                 </View>
                 <TouchableOpacity style={styles.composerInput} onPress={() => setModalVisible(true)}>
-                    <Text style={styles.composerPlaceholder}>{safeStr(data?.placeholder || 'Bạn đang nghĩ gì thế?')}</Text>
+                    <Text style={styles.composerPlaceholder}>{String(data?.placeholder || 'Bạn đang nghĩ gì thế?')}</Text>
                 </TouchableOpacity>
             </View>
             <View style={styles.composerActions}>
@@ -54,6 +51,7 @@ const styles = StyleSheet.create({
     },
     composerHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 12 },
     composerAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+    avatarPlaceholder: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
     avatarImg: { width: '100%', height: '100%' },
     composerInput: { flex: 1, backgroundColor: '#f8fafc', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 24, borderWidth: 1, borderColor: '#e2e8f0' },
     composerPlaceholder: { color: '#64748b', fontSize: 15 },

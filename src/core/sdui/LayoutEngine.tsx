@@ -3,12 +3,21 @@ import { View, Text, StyleSheet } from 'react-native';
 
 // ─── SDUI Types ───────────────────────────────────────────────────────────────
 
+import { TaskBoardBlock } from '../../components/blocks/TaskBoardBlock';
+import { ListGroupBlock } from '../../components/blocks/ListGroupBlock';
+import { DetailViewBlock } from '../../components/blocks/DetailViewBlock';
+import { FormInputBlock } from '../../components/blocks/FormInputBlock';
+
 export type BlockType =
     | 'HEADER_BANNER'
     | 'GRID_MENU'
     | 'NEWS_LIST'
     | 'VERTICAL_LIST'
-    | 'CHART_PIE';
+    | 'CHART_PIE'
+    | 'TASK_BOARD'
+    | 'LIST_GROUP'
+    | 'DETAIL_VIEW'
+    | 'FORM_INPUT';
 
 export interface AppAction {
     type: 'NAVIGATE' | 'API_CALL' | 'OPEN_URL';
@@ -76,6 +85,10 @@ const WIDGET_REGISTRY: Record<string, React.FC<{ data: UIBlock }>> = {
     GRID_MENU: GridMenuWidget,
     NEWS_LIST: NewsListWidget,
     VERTICAL_LIST: VerticalListWidget,
+    TASK_BOARD: TaskBoardBlock,
+    LIST_GROUP: ListGroupBlock,
+    DETAIL_VIEW: DetailViewBlock,
+    FORM_INPUT: FormInputBlock,
 };
 
 // ─── Layout Engine ────────────────────────────────────────────────────────────

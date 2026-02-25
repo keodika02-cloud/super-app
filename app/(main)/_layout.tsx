@@ -1,10 +1,7 @@
-/**
- * app/(main)/_layout.tsx
- * Bottom Tab Navigator – 6 tabs chính theo chuẩn thiết kế mới.
- */
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Text } from 'react-native';
+import { useNavigation, AppTab } from '../../src/hooks/useNavigation';
 
 function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
     return (
@@ -13,29 +10,39 @@ function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
 }
 
 export default function MainLayout() {
+    const { tabs } = useNavigation();
+
     return (
         <Tabs
             screenOptions={{
                 headerShown: false,
                 tabBarStyle: {
-                    backgroundColor: '#ffffff', // Theme sáng
+                    backgroundColor: '#ffffff',
                     borderTopColor: '#e2e8f0',
                     borderTopWidth: 1,
                     height: 70,
                     paddingBottom: 10,
                 },
-                tabBarActiveTintColor: '#3b82f6', // Màu xanh chủ đạo
-                tabBarInactiveTintColor: '#64748b', // Xám nhạt
+                tabBarActiveTintColor: '#3b82f6',
+                tabBarInactiveTintColor: '#64748b',
                 tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
             }}
         >
-            <Tabs.Screen name="index" options={{ title: 'Bảng tin', tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} /> }} />
-            <Tabs.Screen name="reports" options={{ title: 'Báo cáo', tabBarIcon: ({ focused }) => <TabIcon emoji="📊" focused={focused} /> }} />
-            <Tabs.Screen name="chat" options={{ title: 'Chat', tabBarIcon: ({ focused }) => <TabIcon emoji="💬" focused={focused} /> }} />
-            <Tabs.Screen name="more" options={{ title: 'Thêm', tabBarIcon: ({ focused }) => <TabIcon emoji="⊞" focused={focused} /> }} />
+            {tabs.map((tab: AppTab) => (
+                <Tabs.Screen
+                    key={tab.name}
+                    name={tab.name}
+                    options={{
+                        title: tab.label,
+                        href: tab.is_hidden ? null : undefined,
+                        tabBarIcon: ({ focused }) => <TabIcon emoji={tab.icon} focused={focused} />
+                    }}
+                />
+            ))}
 
-            {/* Ẩn các màn hình hệ thống khỏi thanh tab dưới cùng bằng cách đẩy ra khỏi cấu trúc Tabs hoặc dùng href: null */}
-            <Tabs.Screen name="profile" options={{ href: null }} />
+            {/* Ẩn các màn hình hệ thống cố định */}
+            <Tabs.Screen name="checkin" options={{ href: null }} />
+            <Tabs.Screen name="reports" options={{ href: null }} />
             <Tabs.Screen name="notifications" options={{ href: null }} />
             <Tabs.Screen name="tasks" options={{ href: null }} />
         </Tabs>

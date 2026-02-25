@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { safeStr } from '../../../src/utils/safe';
-import { ActionRegistry } from '../../../src/utils/ActionRegistry';
+import { ActionRegistry } from '../../utils/ActionRegistry';
 
 export const BannerBlock = ({ data }: { data: any }) => (
     <TouchableOpacity
@@ -10,9 +9,9 @@ export const BannerBlock = ({ data }: { data: any }) => (
     >
         <View style={styles.bannerContent}>
             <View style={styles.bannerAvatar} />
-            <Text style={styles.bannerTitle}>{safeStr(data.title)}</Text>
-            <Text style={styles.bannerSubtitle}>{safeStr(data.subtitle)}</Text>
-            <Text style={styles.bannerAction}>Gửi thiệp ✨</Text>
+            <Text style={styles.bannerTitle}>{data.title}</Text>
+            <Text style={styles.bannerSubtitle}>{data.subtitle}</Text>
+            {data.action_label && <Text style={styles.bannerAction}>{data.action_label}</Text>}
         </View>
     </TouchableOpacity>
 );
@@ -20,7 +19,7 @@ export const BannerBlock = ({ data }: { data: any }) => (
 const styles = StyleSheet.create({
     bannerCard: {
         borderRadius: 20,
-        backgroundColor: '#eff6ff', // Light blue background
+        backgroundColor: '#eff6ff',
         overflow: 'hidden',
         borderWidth: 1,
         borderColor: '#bfdbfe',

@@ -6,8 +6,11 @@
 
 import { z } from 'zod';
 
+export type ApiDomain = 'CRM' | 'CHAT';
+
 export interface EndpointConfig<TReq extends z.ZodTypeAny, TRes extends z.ZodTypeAny> {
     readonly path: string;
+    readonly domain?: ApiDomain; // Default to CRM
     readonly req: TReq;
     readonly res: TRes;
     readonly fallbackRes: any;
@@ -29,15 +32,15 @@ export type AppNotification = z.infer<typeof NotificationSchema>;
 export const SduiActionSchema = z.string().catch('NONE');
 
 const GridItemSchema = z.object({
-    label: z.string().catch('Mục mới'),
-    icon: z.string().catch('📱'),
-    action: SduiActionSchema,
-    bg_color: z.string().catch('#f1f5f9'),
+    label: z.string().optional().default('Mục mới'),
+    icon: z.string().optional().default('📱'),
+    action: SduiActionSchema.optional().default('NONE'),
+    bg_color: z.string().optional().default('#f1f5f9'),
 });
 
 const SummaryStatSchema = z.object({
-    label: z.string().catch('Trạng thái'),
-    value: z.string().catch('–'),
+    label: z.string().optional().default('Trạng thái'),
+    value: z.string().optional().default('–'),
 });
 
 // Định nghĩa Schema dữ liệu riêng cho từng loại Block
@@ -50,19 +53,20 @@ const GridMenuDataSchema = z.object({
 }).catch({ items: [] });
 
 const BannerDataSchema = z.object({
-    title: z.string().catch('Thông báo mới'),
-    subtitle: z.string().catch('Nhấn để xem chi tiết'),
-    action: SduiActionSchema,
+    title: z.string().optional().default('Thông báo mới'),
+    subtitle: z.string().optional().default('Nhấn để xem chi tiết'),
+    action: SduiActionSchema.optional().default('NONE'),
+    action_label: z.string().optional(),
 }).catch({ title: 'Thông báo', subtitle: '', action: 'NONE' });
 
 const SummaryCardDataSchema = z.object({
-    title: z.string().catch('Báo cáo'),
-    subtitle: z.string().catch('Dữ liệu hệ thống'),
-    stats: z.array(SummaryStatSchema).catch([]),
+    title: z.string().optional().default('Báo cáo'),
+    subtitle: z.string().optional().default('Dữ liệu hệ thống'),
+    stats: z.array(SummaryStatSchema).optional().default([]),
 }).catch({ title: 'Báo cáo', subtitle: '', stats: [] });
 
 const PostComposerDataSchema = z.object({
-    placeholder: z.string().catch('Bạn đang nghĩ gì?'),
+    placeholder: z.string().optional().default('Bạn đang nghĩ gì?'),
 }).catch({ placeholder: 'Bạn đang nghĩ gì?' });
 
 const FeedActionDataSchema = z.object({
@@ -80,8 +84,9 @@ const StoryBlockDataSchema = z.object({
 }).catch({ items: [] });
 
 const SocialPostSchema = z.object({
+    id: z.number().catch(0),
     author: z.string().catch('QVC Admin'),
-    avatar: z.string().optional(),
+    avatar: z.string().optional().nullable(),
     content: z.string().catch(''),
     images: z.array(z.string()).catch([]),
     timestamp: z.string().optional(),
@@ -106,7 +111,43 @@ const HtmlBlockDataSchema = z.object({
     height: z.number().catch(300),
 }).catch({ html: '', height: 300 });
 
-export const SduiBlockSchema = z.discriminatedUnion('type', [
+// ─── NEW REGISTERED BLOCKS ──────────────────────────────────────────────
+const ImageBlockDataSchema = z.object({
+    url: z.string(),
+    aspect_ratio: z.number().default(1.7),
+    resize_mode: z.enum(['cover', 'contain', 'stretch']).default('cover'),
+    action: SduiActionSchema.optional(),
+}).catch({ url: '', aspect_ratio: 1.7, resize_mode: 'cover' });
+
+const CameraBlockDataSchema = z.object({
+    label: z.string().default('Chụp ảnh'),
+    id_key: z.string().optional().default('photo'),
+    required: z.boolean().optional().default(false),
+    description: z.string().optional(),
+    context_type: z.string().optional(),
+    context_id: z.union([z.string(), z.number()]).optional(),
+}).catch({ label: 'Chụp ảnh', id_key: 'photo', required: false });
+
+const GpsBlockDataSchema = z.object({
+    label: z.string().default('Vị trí hiện tại'),
+    auto_refresh: z.boolean().optional().default(true),
+}).catch({ label: 'Vị trí hiện tại', auto_refresh: true });
+
+const CommentBlockDataSchema = z.object({
+    context_type: z.string().default('unknown'),
+    context_id: z.union([z.string(), z.number()]).default(0),
+    placeholder: z.string().optional().default('Viết bình luận...'),
+}).catch({ context_type: 'unknown', context_id: 0, placeholder: 'Viết bình luận...' });
+
+const UploadBlockDataSchema = z.object({
+    label: z.string().default('Tải tệp lên'),
+    accept_types: z.array(z.string()).optional().default(['*/*']),
+    max_size_mb: z.number().optional().default(10),
+    context_type: z.string().optional(),
+    context_id: z.union([z.string(), z.number()]).optional(),
+}).catch({ label: 'Tải tệp lên', accept_types: ['*/*'], max_size_mb: 10 });
+
+export const SduiBlockSchema = z.union([
     z.object({ type: z.literal('ProfileHeaderBlock'), id: z.string().catch('prop_header'), data: ProfileHeaderDataSchema }),
     z.object({ type: z.literal('GridMenuBlock'), id: z.string().catch('grid_menu'), data: GridMenuDataSchema }),
     z.object({ type: z.literal('BannerBlock'), id: z.string().catch('banner'), data: BannerDataSchema }),
@@ -116,17 +157,43 @@ export const SduiBlockSchema = z.discriminatedUnion('type', [
     z.object({ type: z.literal('HtmlBlock'), id: z.string().catch('html_block'), data: HtmlBlockDataSchema }),
     z.object({ type: z.literal('StoryBlock'), id: z.string().catch('story'), data: StoryBlockDataSchema }),
     z.object({ type: z.literal('PostComposerBlock'), id: z.string().catch('composer'), data: PostComposerDataSchema }),
-    // Block dự phòng cho tương lai (UnknownBlock)
-    z.object({ type: z.string().catch('UnknownBlock'), id: z.string().catch('unknown'), data: z.any().catch({}) }),
+    // New blocks
+    z.object({ type: z.literal('ImageBlock'), id: z.string().catch('img'), data: ImageBlockDataSchema }),
+    z.object({ type: z.literal('CameraBlock'), id: z.string().catch('cam'), data: CameraBlockDataSchema }),
+    z.object({ type: z.literal('GpsBlock'), id: z.string().catch('gps'), data: GpsBlockDataSchema }),
+    z.object({ type: z.literal('CommentBlock'), id: z.string().catch('cmt'), data: CommentBlockDataSchema }),
+    z.object({ type: z.literal('UploadBlock'), id: z.string().catch('upl'), data: UploadBlockDataSchema }),
+
+    // Block dự phòng cho tương lai (UnknownBlock) - Phải để ở cuối cùng
+    z.object({
+        type: z.string().transform(() => 'UnknownBlock' as const),
+        id: z.string().catch('unknown'),
+        data: z.any().catch({})
+    }),
 ]).catch((err) => {
     // Nếu một block bị lỗi cấu trúc nặng, trả về một block trống để không crash mảng cha
     console.error('[SduiBlockSchema] Invalid block structure caught:', err);
     return { type: 'GridMenuBlock', id: 'error_fallback', data: { items: [] } } as any;
 });
 
+// ─── NAVIGATION SCHEMAS ──────────────────────────────────────────────────
+export const NavigationTabSchema = z.object({
+    name: z.string(), // tab name (route)
+    label: z.string(),
+    icon: z.string(), // Emoji or icon name
+    screen_slug: z.string().nullable().optional(),
+    is_hidden: z.boolean().catch(false),
+});
+
+export const NavigationConfigSchema = z.object({
+    tabs: z.array(NavigationTabSchema).catch([]),
+});
+
 // Cấu trúc trả về là một mảng các Block
 export const SduiLayoutSchema = z.array(SduiBlockSchema).catch([]);
 export type SduiBlock = z.infer<typeof SduiBlockSchema>;
+export type SduiBlockInput = z.input<typeof SduiBlockSchema>;
+export type SduiLayoutInput = z.input<typeof SduiLayoutSchema>;
 
 
 const CheckInResultSchema = z.object({
@@ -140,6 +207,13 @@ const CheckInResultSchema = z.object({
         photo_document: z.string().optional(),
         is_flexible: z.boolean().default(true),
     }).optional().catch({ is_flexible: true }),
+});
+
+const CheckInSubmitReqSchema = z.object({
+    lat: z.number(),
+    lng: z.number(),
+    is_mock: z.boolean().optional().default(false),
+    photo_portrait: z.any().optional(), // Hỗ trợ FormData truyền file blob/uri
 });
 
 // ─── AUTH & SYSTEM SCHEMAS ──────────────────────────────────────────────────
@@ -218,12 +292,6 @@ export const API_ENDPOINTS = {
             res: z.any(),
             fallbackRes: {},
         },
-        RESEND_2FA: {
-            path: '/v3/app/auth/2fa/resend',
-            req: z.any(),
-            res: z.any(),
-            fallbackRes: {},
-        },
         SOCIAL: {
             GOOGLE_CALLBACK: {
                 path: '/v3/app/auth/google/callback',
@@ -248,8 +316,14 @@ export const API_ENDPOINTS = {
             UI_LAYOUT: {
                 path: '/v3/app/ui-layout',
                 req: z.any(),
-                res: z.lazy(() => SduiLayoutSchema), // Sử dụng lazy load nếu schema chưa init kịp (hoặc đặt nó ở trên)
-                fallbackRes: [], // Giao diện màn hình chính mảng rỗng nếu Crash
+                res: z.lazy(() => SduiLayoutSchema),
+                fallbackRes: [],
+            },
+            NAVIGATION: {
+                path: '/v3/app/navigation',
+                req: z.any(),
+                res: NavigationConfigSchema,
+                fallbackRes: { tabs: [] },
             },
             NOTIFICATIONS: {
                 path: '/v3/app/notifications',
@@ -271,7 +345,8 @@ export const API_ENDPOINTS = {
             },
             CHECKIN_SUBMIT: {
                 path: '/v3/app/checkin',
-                req: z.any(),
+                req: CheckInSubmitReqSchema,
+                isMultipart: true,
                 res: CheckInResultSchema,
                 fallbackRes: {
                     check_in_id: 0,
@@ -279,6 +354,16 @@ export const API_ENDPOINTS = {
                     status: 'ON_TIME',
                     message: 'Chấm công ngoại tuyến hoặc phản hồi lỗi',
                 },
+            },
+            FUNCTIONAL_SYNC: {
+                path: '/v3/app/functional-sync',
+                req: z.object({
+                    context_type: z.string(),
+                    context_id: z.union([z.string(), z.number()]),
+                    data: z.any().optional(),
+                }),
+                res: z.any(),
+                fallbackRes: {},
             },
             LOGS: {
                 path: '/v3/app/logs',
@@ -293,10 +378,92 @@ export const API_ENDPOINTS = {
             NEWS_FEED: {
                 path: '/v3/app/news-feed',
                 req: z.any(),
-                res: NewsFeedResponseSchema,
-                fallbackRes: { posts: [], current_page: 1, last_page: 1 },
+                res: z.object({
+                    posts: z.array(z.record(z.string(), z.any())).catch([]),
+                    current_page: z.number().catch(1),
+                    last_page: z.number().catch(1)
+                }).catch({ posts: [], current_page: 1, last_page: 1 }),
+                fallbackRes: { posts: [], current_page: 1, last_page: 1 }
+            },
+            NEWS_FEED_LIKE: {
+                path: '/v3/app/news-feed/{id}/like',
+                req: z.any(),
+                res: z.object({ likes: z.number().catch(0) }),
+                fallbackRes: { likes: 0 },
+            },
+            NEWS_FEED_COMMENTS: {
+                path: '/v3/app/news-feed/{id}/comments',
+                req: z.any(),
+                res: z.object({
+                    comments: z.array(z.object({
+                        id: z.union([z.string(), z.number()]).transform(String).catch(''),
+                        user: z.string().catch('Ẩn danh'),
+                        avatar: z.string().nullable().catch(null),
+                        text: z.string().catch('...'),
+                        time: z.string().catch('')
+                    })).catch([])
+                }).catch({ comments: [] }),
+                fallbackRes: { comments: [] },
+            },
+            NEWS_FEED_COMMENT_ADD: {
+                path: '/v3/app/news-feed/{id}/comments',
+                req: z.object({ content: z.string() }),
+                res: z.object({ comment_id: z.string() }),
+                fallbackRes: { comment_id: '' },
+            },
+            UPDATE_POST: {
+                path: '/v3/app/news-feed', // Nối /{id} khi gọi fetchSafe
+                req: z.any(),
+                res: z.any(),
+                fallbackRes: {},
+            },
+            DELETE_POST: {
+                path: '/v3/app/news-feed', // Nối /{id}
+                req: z.any(),
+                res: z.any(),
+                fallbackRes: {},
             },
         },
+    },
+
+    // ─── CHAT SYSTEM (Laravel Chat Server) ──────────────────────────────────────
+    CHAT: {
+        INTERNAL: {
+            CONVERSATIONS: {
+                path: '/v1/internal/conversations',
+                domain: 'CHAT' as ApiDomain,
+                req: z.any(),
+                res: z.array(z.object({
+                    id: z.number(),
+                    name: z.string().nullable(),
+                    type: z.string(),
+                    last_message_content: z.string().catch(''),
+                    last_message_at: z.string().nullable(),
+                    participants: z.array(z.object({
+                        user: z.object({
+                            id: z.number(),
+                            name: z.string(),
+                            avatar: z.string().nullable(),
+                        })
+                    })).catch([]),
+                })),
+                fallbackRes: [],
+            },
+            MESSAGES: {
+                path: '/v1/internal/messages',
+                domain: 'CHAT' as ApiDomain,
+                req: z.object({ conversation_id: z.number() }),
+                res: z.any(),
+                fallbackRes: [],
+            },
+            SEND_MESSAGE: {
+                path: '/v1/internal/messages',
+                domain: 'CHAT' as ApiDomain,
+                req: z.object({ conversation_id: z.number(), content: z.string() }),
+                res: z.any(),
+                fallbackRes: {},
+            },
+        }
     },
 
     // ─── SYSTEM & CONFIG ─────────────────────────────────────────────────────────

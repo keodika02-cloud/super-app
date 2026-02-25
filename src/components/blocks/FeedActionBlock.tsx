@@ -1,21 +1,20 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { safeArray, safeStr } from '../../../src/utils/safe';
-import { ActionRegistry } from '../../../src/utils/ActionRegistry';
+import { ActionRegistry } from '../../utils/ActionRegistry';
 
 export const FeedActionBlock = ({ data }: { data: any }) => (
     <View style={styles.feedActionSection}>
         <View style={styles.gridContainer}>
-            {safeArray(data.items).map((item: any, idx: number) => (
+            {(data.items || []).map((item: any, idx: number) => (
                 <TouchableOpacity
                     key={idx}
                     style={styles.gridItem}
-                    onPress={() => ActionRegistry.execute('OPEN_FEED_ACTION')}
+                    onPress={() => ActionRegistry.execute(item.action || 'OPEN_FEED_ACTION')}
                 >
                     <View style={styles.feedIconWrapper}>
-                        <Text style={styles.feedIcon}>{safeStr(item.icon, '📦')}</Text>
+                        <Text style={styles.feedIcon}>{item.icon || '📦'}</Text>
                     </View>
-                    <Text style={styles.gridLabel}>{safeStr(item.label)}</Text>
+                    <Text style={styles.gridLabel}>{item.label}</Text>
                 </TouchableOpacity>
             ))}
         </View>

@@ -35,11 +35,10 @@ export interface SafeLocation {
 }
 
 async function getLocation(): Promise<SafeLocation> {
-    // [HARDENING]: Dùng cờ cấu hình môi trường để quyết định Mock, thay vì chỉ dưa vào thiết bị ảo
-    const shouldUseMock = !Device.isDevice || Env.EXPO_PUBLIC_USE_MOCK;
+    const shouldUseMock = !Device.isDevice;
 
     if (shouldUseMock) {
-        console.warn(`[HardwareService] Cảnh báo: Sử dụng GPS Mock. (Device: ${Device.isDevice}, MOCK_FLAG: ${Env.EXPO_PUBLIC_USE_MOCK})`);
+        console.warn(`[HardwareService] GPS Mocking: (Simulator Mode)`);
         return MOCK_LOCATION;
     }
 
@@ -47,13 +46,22 @@ async function getLocation(): Promise<SafeLocation> {
         const { status } = await Location.requestForegroundPermissionsAsync();
 
         if (status !== 'granted') {
-            console.warn('[HardwareService] GPS permission denied → mock fallback');
-            return MOCK_LOCATION;
+            console.warn('[HardwareService] GPS Permission Denied.');
+            throw new Error('Quyền định vị bị từ chối');
         }
 
-        const loc = await Location.getCurrentPositionAsync({
+        // [HARDENING]: Timeout check 10s để tránh treo UI
+        const locationPromise = Location.getCurrentPositionAsync({
             accuracy: Location.Accuracy.Balanced,
         });
+
+        const timeoutPromise = new Promise<null>((_, reject) =>
+            setTimeout(() => reject(new Error('GPS_TIMEOUT')), 10000)
+        );
+
+        const loc = await Promise.race([locationPromise, timeoutPromise]);
+
+        if (!loc) throw new Error('NO_LOCATION_DATA');
 
         return {
             latitude: loc.coords.latitude,
@@ -61,9 +69,9 @@ async function getLocation(): Promise<SafeLocation> {
             accuracy: loc.coords.accuracy,
             is_mock: loc.mocked ?? false,
         };
-    } catch (err) {
-        console.error('[HardwareService] getLocation lỗi → mock fallback:', err);
-        return MOCK_LOCATION;
+    } catch (err: any) {
+        console.error(`[HardwareService] Location Fetch Error: ${err.message}.`);
+        throw err;
     }
 }
 

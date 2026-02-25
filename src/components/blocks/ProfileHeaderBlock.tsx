@@ -1,8 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
-import { useAuthStore } from '../../../src/stores/useAuthStore';
-import { safeStr } from '../../../src/utils/safe';
-import { ActionRegistry } from '../../../src/utils/ActionRegistry';
+import { useAuthStore } from '../../stores/useAuthStore';
+import { ActionRegistry } from '../../utils/ActionRegistry';
 
 export const ProfileHeaderBlock = ({ data }: { data: any }) => {
     const user = useAuthStore(state => state.user);
@@ -29,14 +28,17 @@ export const ProfileHeaderBlock = ({ data }: { data: any }) => {
                     )}
                 </View>
                 <View>
-                    <Text style={styles.profileName}>{safeStr(data.greeting || 'Xin chào')}, {safeStr(displayName)} 👋</Text>
-                    <Text style={styles.profileRole}>{safeStr(user?.position || user?.hrm_info?.job_title || 'Thành viên QVC')}</Text>
-                    <Text style={styles.profileDepartment}>{safeStr(user?.dept_name || 'Phòng ban Quốc Việt Technology')}</Text>
+                    <Text style={styles.profileName}>{String(data.greeting || 'Xin chào')}, {String(displayName)} 👋</Text>
+                    <Text style={styles.profileRole}>{String(user?.position || user?.hrm_info?.job_title || 'Thành viên QVC')}</Text>
+                    <Text style={styles.profileDepartment}>{String(user?.dept_name || 'Phòng ban Quốc Việt Technology')}</Text>
                 </View>
             </View>
-            <TouchableOpacity style={styles.companyCard} onPress={() => ActionRegistry.execute('OPEN_COMPANY_INFO')}>
+            <TouchableOpacity
+                style={styles.companyCard}
+                onPress={() => ActionRegistry.execute(data.company_action || 'OPEN_COMPANY_INFO')}
+            >
                 <Text style={styles.companyIcon}>🏢</Text>
-                <Text style={styles.companyName}>CÔNG TY TNHH CÔNG NGHỆ QUỐC VIỆT</Text>
+                <Text style={styles.companyName}>{data.company_name || 'CÔNG TY TNHH CÔNG NGHỆ QUỐC VIỆT'}</Text>
                 <Text style={styles.arrowIcon}>›</Text>
             </TouchableOpacity>
         </View>
