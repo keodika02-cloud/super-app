@@ -76,6 +76,27 @@ Mỗi API nạp Layout trả về một Array chứa cấu trúc sau đây:
 
 ---
 
+## 4.5. Danh bạ Các Lệnh Hành Động (Supported Actions)
+Phía Mobile App đã `Hardcode` (đăng ký tĩnh) một danh sách các lệnh an toàn. Admin phải dùng đúng chữ in hoa dưới đây trong ô `action` của Block:
+
+| Mã Action (Backend xuất) | Chức năng trên App (Mobile thực thi) |
+|---|---|
+| `OPEN_APP_ATTENDANCE` (hoặc `OPEN_APP_CHECKIN`) | Mở màn hình Chấm Công (GPS/Camera) |
+| `OPEN_APP_GUEST_CHECKIN` | Mở màn hình Check-in Khách Hàng |
+| `OPEN_FEATURE_CHAT` | Mở Tab Cuộc trò chuyện (Realtime Reverb) |
+| `OPEN_FEATURE_PROFILE` | Mở Tab Quản lý Thông tin cá nhân |
+| `OPEN_FEATURE_REPORTS` | Mở màn hình Báo cáo (Route ẩn) |
+| `OPEN_FEATURE_TASKS` | Mở màn hình Danh sách Công việc (Route ẩn) |
+| `OPEN_FEATURE_NOTIFICATIONS`| Mở màn hình Thông báo (Route ẩn) |
+| `OPEN_WEB_CRM` | Mở WebView chạy thẳng Hệ thống CRM Web 100% |
+| `OPEN_MAP` | Mở Bản đồ (cần truyền toạ độ meta) |
+| `CALL_PHONE` | Bật trình gọi điện (cần meta phone) |
+| `NONE` (hoặc rỗng) | Nút vô tri (chỉ để trang trí) |
+
+> ⚠️ Cảnh báo: Tuyệt đối không tự chế Action name không có trong danh sách trên. App sẽ rơi vào luồng `Unknown Action` và không click được.
+
+---
+
 ## 5. Hướng dẫn Cấu hình (Operating Manual)
 Để tùy biến UI của Mobile App thông qua Control Center:
 

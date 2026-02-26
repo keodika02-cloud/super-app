@@ -28,8 +28,18 @@ export const GpsBlock: React.FC<GpsBlockProps> = ({ data }) => {
     };
 
     useEffect(() => {
-        refreshLocation();
+        // Lần đầu mount: chỉ lấy nếu đã có quyền (silently)
+        getLocationSilently();
     }, []);
+
+    const getLocationSilently = async () => {
+        try {
+            const loc = await HardwareService.getLocation(false);
+            setLocation(loc);
+        } catch { } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <View style={styles.container}>

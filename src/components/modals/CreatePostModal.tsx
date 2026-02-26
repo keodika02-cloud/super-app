@@ -67,7 +67,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ visible, onClo
                 </View>
 
                 {/* Body */}
-                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.body}>
+                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.body}>
                     <View style={styles.userInfo}>
                         <View style={styles.avatar}>
                             {user?.avatar ? (

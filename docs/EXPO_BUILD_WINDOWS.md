@@ -178,3 +178,45 @@ eas submit --platform ios --profile production
 - [ ] Privacy Policy URL hoạt động
 - [ ] Test offline mode
 - [ ] Test trên thiết bị thật (không chỉ Simulator)
+
+---
+
+## Build Offline (Tạo APK Local trực tiếp trên máy không qua EAS)
+
+Do một số dự án không muốn code bị đẩy lên máy chủ EAS của Expo, ta có thể build trực tiếp trên máy Windows thông qua luồng Native Android.
+
+### Điều kiện tiên quyết RẤT QUAN TRỌNG:
+1. **BẮT BUỘC cài đặt Java JDK 17**: Android Gradle Plugin phiên bản mới không hỗ trợ Java 11. Các máy tính hay dùng Java 8 hoặc 11 (hiện tại biến `JAVA_HOME` đang trỏ vào `AppData\Local\jdk-11.0.2` sẽ bị lỗi Gradle).
+   - Tải và cài đặt JDK 17 từ Oracle hoặc Adoptium.
+   - Thêm đường dẫn `C:\Program Files\Java\jdk-17\bin` vào biến môi trường `PATH`.
+   - Update biến `JAVA_HOME` chỉ định đúng vào thư mục `jdk-17`.
+   - Kiểm tra bằng lệnh: `java -version` và `javac -version` (phải ra 17.x).
+2. **Cài đặt Android Studio & Android SDK**:
+   - Cài đặt SDK Platform 36 (Tương ứng với `compileSdk` của project).
+   - Cấu hình biến môi trường `ANDROID_HOME` trỏ tới `C:\Users\[Tên_User]\AppData\Local\Android\Sdk`.
+3. **Mạng mẽo ổn định (Tránh lỗi chứng chỉ SSL/TLS)**: Gradle phải tải hàng loạt file `.jar`. Nếu hay gặp lỗi `peer not authenticated` hoặc `No PSK available`, phải ép cấu hình dùng TLS 1.2.
+
+### Quy trình Build APK Local (Windows)
+
+**Bước 1: Nạp cấu hình Native** (Chỉ làm khi chưa có folder `android`)
+```powershell
+npx expo prebuild --platform android --clean
+```
+
+**Bước 2: Di chuyển vào thư mục android**
+```powershell
+cd android
+```
+
+**Bước 3: Chạy lệnh Build APK Release**
+```powershell
+# Chạy lệnh mặc định:
+.\gradlew assembleRelease
+
+# HOẶC, nếu bị các lỗi liên quan đến tải file / bảo mật SSL của Java thì chạy lệnh bypass này:
+.\gradlew assembleRelease -Dhttps.protocols=TLSv1.2 -Djdk.tls.client.protocols=TLSv1.2
+```
+
+**Kết quả:**
+- File APK sẽ được sinh ra tại: `android\app\build\outputs\apk\release\app-release.apk`.
+- Bạn có thể chép thẳng file APK này vào giả lập hoặc cắm cáp USB chép vào điện thoại Android.

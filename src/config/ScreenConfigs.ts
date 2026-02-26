@@ -48,7 +48,22 @@ export const SCREEN_CONFIGS: Record<string, ScreenConfig> = {
         cacheKey: 'sdui_more_layout_v3',
         queryParams: { screen_slug: 'goto_more' },
         fallbackLayout: [
-            { id: 'fb_more', type: 'GridMenuBlock', data: { items: [] } }
+            { id: 'fb_more_banner', type: 'BannerBlock', data: { title: 'Tiện ích & Ứng dụng', subtitle: 'Tất cả các tính năng nghiệp vụ của QVC', action: 'NONE' } },
+            {
+                id: 'fb_more_grid',
+                type: 'GridMenuBlock',
+                data: {
+                    title: 'Tính năng chính',
+                    items: [
+                        { label: 'Chấm công', icon: '📍', action: 'OPEN_APP_CHECKIN', bg_color: '#dcfce7' },
+                        { label: 'Công việc', icon: '📋', action: 'OPEN_FEATURE_TASKS', bg_color: '#fef3c7' },
+                        { label: 'Báo cáo', icon: '📊', action: 'OPEN_FEATURE_REPORTS', bg_color: '#e0f2fe' },
+                        { label: 'Thông báo', icon: '🔔', action: 'OPEN_FEATURE_NOTIFICATIONS', bg_color: '#fce7f3' },
+                        { label: 'Khách hàng', icon: '👥', action: 'OPEN_WEB_CRM', bg_color: '#ede9fe' },
+                        { label: 'Bảng lương', icon: '💰', action: 'OPEN_FEATURE_SALARY', bg_color: '#ffedd5' },
+                    ]
+                }
+            }
         ]
     },
     TASKS: {

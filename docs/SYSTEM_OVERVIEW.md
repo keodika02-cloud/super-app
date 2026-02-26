@@ -113,16 +113,16 @@ appqvc2026/
 │   ├── _layout.tsx             ← Root layout: ErrorBoundary + Auth Guard + Sentry
 │   ├── (auth)/login.tsx        ← Màn hình đăng nhập
 │   └── (main)/
-│       ├── _layout.tsx         ← Tab Bar – điều khiển từ Backend (useNavigation hook)
+│       ├── _layout.tsx         ← Tab Bar (Cấu hình cứng 5 Tab: Trang chủ, CRM, Cuộc trò chuyện, Khám phá, Hồ sơ)
 │       ├── index.tsx           ← Trang chủ (Bảng tin) → SDUI
-│       ├── reports.tsx         ← Báo cáo → SDUI
-│       ├── tasks.tsx           ← Chi tiết công việc → SDUI
-│       ├── more.tsx            ← Khám phá → SDUI
-│       ├── chat.tsx            ← Chat nội bộ ← Realtime
-│       ├── checkin.tsx         ← Chấm công (GPS + Camera)
-│       ├── crm.tsx             ← WebView nhúng crm.maytinhquocviet.com
-│       ├── notifications.tsx   ← Thông báo
+│       ├── crm.tsx             ← WebView nhúng Hệ thống quản lý CRM Quốc Việt
+│       ├── chat.tsx            ← Chat nội bộ (Realtime - Reverb)
+│       ├── more.tsx            ← Khám phá (Danh sách Chấm công, Báo cáo, Lịch...) → SDUI
 │       └── profile.tsx         ← Hồ sơ cá nhân
+│       ├── (ẩn) checkin.tsx      ← Chấm công (GPS + Camera) - Gọi từ Tab Khám phá
+│       ├── (ẩn) reports.tsx      ← Báo cáo phân tích - Gọi từ Tab Khám phá
+│       ├── (ẩn) tasks.tsx        ← Danh sách Công Việc - Gọi từ Tab Khám phá
+│       └── (ẩn) notifications.tsx ← Thông báo tổng hợp - Gọi từ Tab Khám phá
 │
 └── src/
     ├── config/

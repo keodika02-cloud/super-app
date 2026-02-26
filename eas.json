@@ -29,7 +29,7 @@
                 "buildType": "app-bundle"
             },
             "ios": {
-                "resourceClass": "m2-medium"
+                "resourceClass": "medium"
             },
             "env": {
                 "EXPO_PUBLIC_ENV": "production"

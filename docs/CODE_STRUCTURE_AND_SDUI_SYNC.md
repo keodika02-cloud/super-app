@@ -21,7 +21,7 @@ Hệ thống của chúng ta gồm 3 phần tương tác chặt chẽ với nhau
 ### A. Tầng Mobile App (`f:\project\appqvc2026`)
 *   **File "Bộ khung xương":** `app/(main)/_layout.tsx`
     *   **Nhiệm vụ:** Định nghĩa cứng 5 Tabs (Bottom Navigation) của App. Ở đây chứa các Màn hình gốc.
-    *   **Hiện tại có:** `Trang chủ` (index.tsx), `CRM` (crm.tsx), `Chấm công` (checkin.tsx), `Thông báo` (notifications.tsx), `Hồ sơ` (profile.tsx).
+    *   **Hiện tại có:** `Trang chủ` (index.tsx), `CRM` (crm.tsx), `Hội thoại` (chat.tsx), `Khám phá` (more.tsx), `Cá nhân` (profile.tsx).
 *   **File "Lắp ráp màn hình":** `app/(main)/index.tsx`, `app/(main)/checkin.tsx`, ...
     *   **Nhiệm vụ:** Trong mỗi trang này, sẽ gọi chung 1 cục logic: Lấy `screen_slug` (VD: Trang chủ -> `slug = goto_feed`) truyền lên API Backend sinh ra các giao diện.
 *   **Trái tim SDUI:** `src/core/sdui/LayoutEngine.tsx` hoặc xử lý mảng layout trực tiếp trong file màn hình. Nhận JSON từ Backend và dùng lệnh `switch(block.type)` để vẽ `<BannerBlock>`, `<GridMenuBlock>`,...
@@ -38,7 +38,7 @@ Hệ thống của chúng ta gồm 3 phần tương tác chặt chẽ với nhau
 
 ### C. Tầng Frontend Admin Web (`f:\project\frontend`)
 *   **Trình Mô phỏng App:** `src/components/SDUI/MobilePreviewFrame.jsx`
-    *   **Nhiệm vụ:** Cố gắng vẽ lại y hệt 100% Mobile App trên Web. Component này mình đã sửa lại cứng 5 Tabs Bottom y đúc app Mobile (Trang chủ, CRM, Chấm công, Thông báo, Hồ sơ).
+    *   **Nhiệm vụ:** Cố gắng vẽ lại y hệt 100% Mobile App trên Web. Component này mình đã sửa lại cứng 5 Tabs Bottom y đúc app Mobile (Trang chủ, CRM, Hội thoại, Khám phá, Cá nhân).
 *   **Bảng Điều Khiển SDUI:** `src/pages/Admin/AppSDUIManager.jsx`
     *   **Nhiệm vụ:** Sinh gọi API GET `/api/v3/admin/app-screens` để lấy mảng màn hình tạo ra Cột Sidebar cấu hình bên Trái.
 
@@ -72,5 +72,5 @@ php -r "require 'vendor/autoload.php'; \$app = require_once 'bootstrap/app.php';
 
 **Kết quả sau khi chạy:**
 1. Database `app_screens` sẽ xóa sạch các màn cũ rác.
-2. Insert đúng 5 màn hình mapping với Mobile (*Trang chủ, CRM, Chấm công, Thông báo, Hồ sơ*).
+2. Insert đúng 5 màn hình mapping với Mobile (*Trang chủ, CRM, Hội thoại, Khám phá, Cá nhân*).
 3. Anh F5 lại trang Web Admin chỗ Kiến tạo App SDUI, Cột bên trái sẽ lập tức gọn gàng, khớp màu 100% với màn hình Simulator bên phải lúc Click chuột. Không còn chuyện Simulator hiện 1 đằng mà Cột Sidebar hiện một nẻo nữa!

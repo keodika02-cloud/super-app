@@ -1,0 +1,4 @@
+app/newsfeed.tsx(164,54): error TS2339: Property 'length' does not exist on type 'never'.
+src/screens/NotificationScreen.tsx(37,53): error TS2339: Property 'data' does not exist on type 'never'.
+src/screens/ProfileScreen.tsx(90,108): error TS2339: Property 'PUBLIC' does not exist on type '{ readonly AUTH: { readonly LOGIN: { readonly path: "/v3/app/login"; readonly req: ZodObject<{ email: ZodString; password: ZodString; device_id: ZodString; device_name: ZodOptional<ZodString>; }, $strip>; readonly res: ZodObject<...>; readonly fallbackRes: { ...; }; }; ... 5 more ...; readonly SOCIAL: { ...; }; }; r...'.
+src/services/RemoteLogger.ts(34,46): error TS2551: Property 'isDevice' does not exist on type '{ model: string; os: string; brand: string; device_id: string; is_device: boolean; }'. Did you mean 'is_device'?

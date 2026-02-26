@@ -8,8 +8,13 @@ import { Env } from '../config/env';
 import { StorageService } from './StorageService';
 
 // Cần gán Pusher cho window để Echo tìm thấy trong môi trường React Native if needed
-// Hoặc truyền trực tiếp vào config của Echo.
-(window as any).Pusher = Pusher;
+// Khai báo global an toàn cho React Native
+if (typeof global !== 'undefined') {
+    (global as any).Pusher = Pusher;
+}
+if (typeof window !== 'undefined') {
+    (window as any).Pusher = Pusher;
+}
 
 class SocketService {
     private echo: Echo<any> | null = null;

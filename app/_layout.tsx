@@ -11,7 +11,8 @@
  *   ✓ Notification unsubscribe cleanup đúng chuẩn
  * ──────────────────────────────────────────────────────────────────────────────
  */
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
+import { View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Sentry from '@sentry/react-native';
@@ -22,6 +23,10 @@ import { queryClient, setupAppStateListener } from '../src/core/query-client';
 import { useAuthStore } from '../src/stores/useAuthStore';
 import { NotificationService } from '../src/services/NotificationService';
 import { ErrorBoundary } from '../src/components/error/ErrorBoundary';
+import { RemoteLogger } from '../src/services/RemoteLogger';
+
+// [HARDENING]: Log app boot-up sớm nhất có thể
+RemoteLogger.info('App booting up - Root Layout initializing...');
 
 // Giữ splash screen cho đến khi isHydrated = true
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -37,8 +42,11 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
     // Hydrate session từ storage khi mount
     useEffect(() => {
-        loadFromStorage().catch(() => {
-            // Lỗi storage → coi như chưa đăng nhập (safe fallback)
+        RemoteLogger.info('AuthGuard mounting...');
+        loadFromStorage().then(() => {
+            RemoteLogger.info('Session hydrated successfully');
+        }).catch((err) => {
+            RemoteLogger.error('Session hydration failed', err);
         });
 
         // [HARDENING]: Setup AppState listener and return cleanup function to fix memory leak
@@ -48,21 +56,39 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
         };
     }, []);
 
+    const isSplashHidden = useRef(false);
+
     // Ẩn splash khi đã hydrate
     useEffect(() => {
-        if (!isHydrated) return;
-        SplashScreen.hideAsync().catch(() => {
-            // Ignore: splash có thể đã hide rồi
-        });
+        if (!isHydrated || isSplashHidden.current) return;
+
+        // Delay 300ms để đảm bảo UI trang đích đã render phần nào
+        const timer = setTimeout(() => {
+            SplashScreen.hideAsync()
+                .then(() => {
+                    isSplashHidden.current = true;
+                    RemoteLogger.info('SplashScreen hidden successfully');
+                })
+                .catch((e) => {
+                    RemoteLogger.warn('SplashScreen hide fail (ignoring): ' + e.message);
+                });
+        }, 300);
+
+        return () => clearTimeout(timer);
     }, [isHydrated]);
 
     // Điều hướng dựa trên trạng thái auth
     useEffect(() => {
         if (!isHydrated) return;
+
         const inAuth = segments[0] === '(auth)';
+        RemoteLogger.info(`Navigation Check: isLoggedIn=${isLoggedIn}, inAuth=${inAuth}, segment=${segments[0]}`);
+
         if (!isLoggedIn && !inAuth) {
+            RemoteLogger.info('Redirecting to Login...');
             router.replace('/(auth)/login');
         } else if (isLoggedIn && inAuth) {
+            RemoteLogger.info('Redirecting to Home...');
             // @ts-ignore: Router typed definition mismatch in Expo 50+
             router.replace('/');
         }

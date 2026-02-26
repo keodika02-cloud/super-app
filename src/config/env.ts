@@ -48,14 +48,34 @@ const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
     const errors = parsed.error.format();
-    console.error('\n🛑 =====================================================');
-    console.error('🛑 LỖI CẤU HÌNH NGHIÊM TRỌNG – App không thể khởi động');
-    console.error('🛑 =====================================================');
+    const errorMsg = '🛑 FATAL CONFIG ERROR: Kiểm tra file .env. App đang chạy với cấu hình fallback.';
+
+    console.error('\n' + errorMsg);
     console.error(JSON.stringify(errors, null, 2));
-    console.error('📄 Tạo file .env từ .env.example và điền đầy đủ\n');
-    throw new Error('⚠️  FATAL CONFIG ERROR: Kiểm tra file .env');
+
+    // Cung cấp dữ liệu fallback tối thiểu để app không trắng màn hoàn toàn
+    const fallbackData: any = {
+        EXPO_PUBLIC_API_URL: 'https://crm.maytinhquocviet.com/api',
+        EXPO_PUBLIC_CRM_URL: 'https://crm.maytinhquocviet.com',
+        EXPO_PUBLIC_CHAT_API_URL: 'https://chat.maytinhquocviet.com/api',
+        EXPO_PUBLIC_CHAT_SOCKET_URL: 'wss://chat.maytinhquocviet.com:443',
+        EXPO_PUBLIC_CHAT_REVERB_KEY: '',
+        EXPO_PUBLIC_CHAT_REVERB_PORT: 443,
+        EXPO_PUBLIC_CHAT_REVERB_SCHEME: 'https',
+        EXPO_PUBLIC_API_TIMEOUT: 30000,
+        EXPO_PUBLIC_APP_VERSION: '1.0.0-fallback',
+        EXPO_PUBLIC_ENV: 'production',
+        EXPO_PUBLIC_USE_MOCK: false,
+        EXPO_PUBLIC_ENABLE_GOOGLE_AUTH: false,
+    };
+
+    // Ghi đè bằng dữ liệu đã parse được (nếu có phần đúng)
+    (global as any).ENV_LOAD_ERROR = errors;
+
+    // Chúng ta KHÔNG throw Error ở đây nữa để ErrorBoundary có thể hiển thị giao diện thay vì trắng màn module-level
+    parsed.data = fallbackData;
 }
 
-export const Env = parsed.data;
+export const Env = parsed.data as z.infer<typeof envSchema>;
 export const IS_DEV = Env.EXPO_PUBLIC_ENV === 'development';
 export const IS_PROD = Env.EXPO_PUBLIC_ENV === 'production';

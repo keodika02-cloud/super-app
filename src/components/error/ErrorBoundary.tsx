@@ -1,6 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import * as Sentry from '@sentry/react-native';
+import { RemoteLogger } from '@services/RemoteLogger';
 
 interface Props {
     children: ReactNode;
@@ -12,11 +13,11 @@ interface State {
     error: Error | null;
 }
 
-export class ErrorBoundary extends Component<Props, State> {
-    public state: State = {
-        hasError: false,
-        error: null,
-    };
+export class ErrorBoundary extends React.Component<Props, State> {
+    constructor(props: Props) {
+        super(props);
+        this.state = { hasError: false, error: null };
+    }
 
     public static getDerivedStateFromError(error: Error): State {
         // [HARDENING]: Ensure state reflects the error to show fallback UI
@@ -26,10 +27,15 @@ export class ErrorBoundary extends Component<Props, State> {
     public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         const scope = this.props.scope || 'App';
 
+        // [HARDENING]: Log online ngay lập tức
+        RemoteLogger.fatal(`Crash [${scope}]: ${error.message}`, {
+            stack: error.stack,
+            componentStack: errorInfo.componentStack
+        });
+
         if (__DEV__) {
             console.error(`[ErrorBoundary:${scope}] Uncaught error:`, error, errorInfo);
         } else {
-            // [HARDENING] Gửi error lên remote server (Sentry)
             Sentry.captureException(error, {
                 tags: { scope },
                 extra: { componentStack: errorInfo.componentStack }
@@ -50,9 +56,13 @@ export class ErrorBoundary extends Component<Props, State> {
                     <Text style={styles.subtitle}>
                         Ứng dụng gặp sự cố không mong muốn trong khu vực: {this.props.scope || 'Giao diện'}.
                     </Text>
-                    {__DEV__ && this.state.error && (
+                    {(__DEV__ || (global as any).ENV_LOAD_ERROR) && (
                         <View style={styles.devErrorBox}>
-                            <Text style={styles.devErrorText}>{this.state.error.toString()}</Text>
+                            <Text style={styles.devErrorText}>
+                                {this.state.error?.toString() || 'Unknown Error'}
+                                {"\n\n"}
+                                {JSON.stringify((global as any).ENV_LOAD_ERROR, null, 2)}
+                            </Text>
                         </View>
                     )}
                     <TouchableOpacity style={styles.button} onPress={this.handleReset}>

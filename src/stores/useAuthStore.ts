@@ -12,6 +12,7 @@ import { HardwareService } from '@services/HardwareService';
 import { API_ENDPOINTS } from '../config/api-endpoints';
 import { LoginDataSchema } from '../types/auth';
 import type { User } from '../types/auth';
+import { NotificationService } from '../services/NotificationService';
 
 interface AuthState {
     user: User | null;
@@ -65,7 +66,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const deviceInfo = HardwareService.getDeviceInfo();
 
         // Mismatch fix: Backend loginApp yêu cầu device_id
-        const raw = await ApiClient.fetchSafe(API_ENDPOINTS.AUTH.LOGIN, {
+        // Sử dụng actionSafe để Đẩy Exception lên LoginScreen bắt lại.
+        const raw = await ApiClient.actionSafe(API_ENDPOINTS.AUTH.LOGIN, {
             email,
             password,
             device_id: deviceInfo.device_id,
@@ -86,7 +88,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const { tempUserId } = get();
         if (!tempUserId) throw new Error('Phiên xác thực không hợp lệ.');
 
-        const raw = await ApiClient.fetchSafe(API_ENDPOINTS.AUTH.VERIFY_2FA, {
+        const raw = await ApiClient.actionSafe(API_ENDPOINTS.AUTH.VERIFY_2FA, {
             user_id: tempUserId,
             code,
             remember_device: rememberDevice,
@@ -135,6 +137,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         await StorageService.saveToken(access_token);
         await StorageService.saveUser(user);
         set({ token: access_token, user: user as any, isLoggedIn: true });
+
+        // Tự động đăng ký Push Token sau khi đăng nhập thành công
+        NotificationService.registerDevice().catch(err =>
+            console.error('[AuthStore] registerDevice sau login lỗi:', err)
+        );
     },
 
     // ─── Đăng xuất ─────────────────────────────────────────────────────────────

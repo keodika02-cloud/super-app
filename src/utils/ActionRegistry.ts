@@ -35,6 +35,8 @@ export type SupportedAction =
     | 'OPEN_FEATURE_CONTRACT'
     | 'OPEN_FEATURE_DOCS'
     | 'OPEN_FEATURE_CALENDAR'
+    | 'OPEN_FEATURE_TASKS'
+    | 'OPEN_FEATURE_NOTIFICATIONS'
     | 'OPEN_SETTINGS'
     // ─── Web/CRM ───────────────────────────────────────────────────────
     | 'OPEN_WEB_CRM'
@@ -88,6 +90,12 @@ export const ActionRegistry = {
                 break;
             case 'OPEN_FEATURE_REPORTS':
                 router.push('/(main)/reports');
+                break;
+            case 'OPEN_FEATURE_TASKS':
+                router.push('/(main)/tasks');
+                break;
+            case 'OPEN_FEATURE_NOTIFICATIONS':
+                router.push('/(main)/notifications');
                 break;
             case 'OPEN_FEATURES_SALARY':
             case 'OPEN_FEATURE_SALARY':
@@ -162,7 +170,7 @@ export const ActionRegistry = {
             case 'OPEN_COMPANY_INFO':
                 Alert.alert(
                     'Thông tin Công ty',
-                    'CÔNG TY TNHH CÔNG NGHỆ QUỐC VIỆT\nĐịa chỉ: TP. Vinh, Nghệ An\nHotline: 1900 xxxx'
+                    'CÔNG TY TNHH CÔNG NGHỆ QUỐC VIỆT\nĐịa chỉ: TP. Vinh, Nghệ An\nHotline: 091.222.1011'
                 );
                 break;
 

@@ -17,13 +17,14 @@ export interface EndpointConfig<TReq extends z.ZodTypeAny, TRes extends z.ZodTyp
 }
 
 export const NotificationSchema = z.object({
-    id: z.number(),
-    title: z.string().catch('Thông báo'),
-    body: z.string().catch(''),
-    type: z.string().catch(''),
-    is_read: z.boolean().catch(false),
+    id: z.string(), // Chat server uses UUID (string)
+    data: z.object({
+        title: z.string().catch('Thông báo'),
+        message: z.string().catch(''),
+        url: z.string().optional(),
+    }).catch({ title: 'Thông báo', message: '' }),
+    read_at: z.string().nullable().catch(null),
     created_at: z.string().nullable().catch(null),
-    payload: z.record(z.string(), z.unknown()).optional().catch(undefined),
 });
 
 export type AppNotification = z.infer<typeof NotificationSchema>;
@@ -297,6 +298,12 @@ export const API_ENDPOINTS = {
             res: z.any(),
             fallbackRes: {},
         },
+        RESEND_2FA: {
+            path: '/v3/app/auth/2fa/resend',
+            req: z.object({ user_id: z.number() }),
+            res: z.any(),
+            fallbackRes: {},
+        },
         SOCIAL: {
             GOOGLE_CALLBACK: {
                 path: '/v3/app/auth/google/callback',
@@ -314,8 +321,6 @@ export const API_ENDPOINTS = {
     },
 
     // ─── APP V3 HARDENED (API v3) ────────────────────────────────────────────────
-    // These routes are specialized for Zero-Crash & Offline-First behavior
-    // Validated 100% via Zod. If response is modified externally, it uses fallbackRes and reports err.
     V3: {
         APP: {
             UI_LAYOUT: {
@@ -417,13 +422,13 @@ export const API_ENDPOINTS = {
                 fallbackRes: { comment_id: '' },
             },
             UPDATE_POST: {
-                path: '/v3/app/news-feed', // Nối /{id} khi gọi fetchSafe
+                path: '/v3/app/news-feed',
                 req: z.any(),
                 res: z.any(),
                 fallbackRes: {},
             },
             DELETE_POST: {
-                path: '/v3/app/news-feed', // Nối /{id}
+                path: '/v3/app/news-feed',
                 req: z.any(),
                 res: z.any(),
                 fallbackRes: {},
@@ -454,21 +459,121 @@ export const API_ENDPOINTS = {
                 })),
                 fallbackRes: [],
             },
+            CREATE_CONVERSATION: {
+                path: '/v1/internal/conversations',
+                domain: 'CHAT' as ApiDomain,
+                req: z.any(),
+                res: z.object({
+                    id: z.number(),
+                    name: z.string().nullable(),
+                    type: z.string(),
+                    creator_id: z.number().optional(),
+                }).catch({ id: 0, name: null, type: 'individual' }),
+                fallbackRes: { id: 0, name: null, type: 'individual' },
+            },
             MESSAGES: {
                 path: '/v1/internal/messages',
                 domain: 'CHAT' as ApiDomain,
-                req: z.object({ conversation_id: z.number() }),
+                req: z.any(),
                 res: z.any(),
                 fallbackRes: [],
+            },
+            MARK_READ: {
+                path: '/v1/internal/conversations/{id}/read',
+                domain: 'CHAT' as ApiDomain,
+                req: z.any(),
+                res: z.any(),
+                fallbackRes: {},
             },
             SEND_MESSAGE: {
                 path: '/v1/internal/messages',
                 domain: 'CHAT' as ApiDomain,
-                req: z.object({ conversation_id: z.number(), content: z.string() }),
+                req: z.object({
+                    conversation_id: z.number().optional(),
+                    receiver_id: z.number().optional(),
+                    content: z.string().optional(),
+                    type: z.string().optional(),
+                    file: z.any().optional(),
+                    temp_id: z.string().optional()
+                }),
+                isMultipart: true,
+                res: z.any(),
+                fallbackRes: {},
+            },
+            USERS_SEARCH: {
+                path: '/v1/internal/users/search',
+                domain: 'CHAT' as ApiDomain,
+                req: z.object({ q: z.string() }),
+                res: z.any(),
+                fallbackRes: [],
+            },
+            USERS_ALL: {
+                path: '/v1/internal/users/all',
+                domain: 'CHAT' as ApiDomain,
+                req: z.any(),
+                res: z.any(),
+                fallbackRes: [],
+            },
+            ADD_PARTICIPANT: {
+                path: '/v1/internal/conversations/participants',
+                domain: 'CHAT' as ApiDomain,
+                req: z.object({ conversation_id: z.number(), user_id: z.number() }),
+                res: z.any(),
+                fallbackRes: {},
+            },
+            REMOVE_PARTICIPANT: {
+                path: '/v1/internal/conversations/participants',
+                domain: 'CHAT' as ApiDomain,
+                req: z.object({ conversation_id: z.number(), user_id: z.number() }),
                 res: z.any(),
                 fallbackRes: {},
             },
         }
+    },
+
+    NOTIFICATIONS: {
+        REGISTER_TOKEN: {
+            path: '/v1/notifications/push-tokens',
+            domain: 'CHAT' as ApiDomain,
+            req: z.object({ token: z.string(), platform: z.string().optional(), device_model: z.string().optional() }),
+            res: z.any(),
+            fallbackRes: {},
+        },
+        GET_ALL: {
+            path: '/v1/notifications',
+            domain: 'CHAT' as ApiDomain,
+            req: z.any(),
+            res: z.any(),
+            fallbackRes: [],
+        },
+        MARK_READ: {
+            path: '/v1/notifications/read',
+            domain: 'CHAT' as ApiDomain,
+            req: z.any(),
+            res: z.any(),
+            fallbackRes: {},
+        },
+        MARK_SINGLE_READ: {
+            path: '/v1/notifications/{id}/read',
+            domain: 'CHAT' as ApiDomain,
+            req: z.object({ id: z.union([z.string(), z.number()]) }),
+            res: z.any(),
+            fallbackRes: {},
+        },
+        BROADCAST: {
+            path: '/v1/notifications/broadcast',
+            domain: 'CHAT' as ApiDomain,
+            req: z.object({
+                title: z.string(),
+                body: z.string(),
+                target: z.enum(['all_staff', 'specific_users']),
+                user_ids: z.array(z.number()).optional(),
+                url: z.string().optional(),
+                type: z.enum(['info', 'warning', 'error']).optional()
+            }),
+            res: z.any(),
+            fallbackRes: {},
+        },
     },
 
     // ─── SYSTEM & CONFIG ─────────────────────────────────────────────────────────

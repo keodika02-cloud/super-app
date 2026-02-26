@@ -145,8 +145,10 @@ function setupInterceptors(targetInstance: AxiosInstance) {
                 throw new ApiError('Server trả dữ liệu không hợp lệ (không phải JSON). Liên hệ admin.', 500, 'invalid-response-type');
             }
 
-            // HTTP 200 nhưng business logic lỗi (envelope.code !== 200)
-            if (envelope.code !== undefined && envelope.code !== 200) {
+            // HTTP 2xx nhưng business logic có thể trả code khác 200 (vd: 201 Created)
+            const isSuccess = envelope.code !== undefined && envelope.code >= 200 && envelope.code < 300;
+
+            if (envelope.code !== undefined && !isSuccess) {
                 const msg = envelope.message ?? 'Dữ liệu không hoàn thiện';
                 console.warn(`[ApiClient] Business logic notice ${envelope.code} | trace: ${envelope.trace_id ?? 'no-trace'} | ${msg}`);
                 throw new ApiError(msg, envelope.code, envelope.trace_id ?? 'no-trace', envelope.errors);
@@ -160,21 +162,24 @@ function setupInterceptors(targetInstance: AxiosInstance) {
             const traceId = envelope?.trace_id ?? 'no-trace';
             const message = envelope?.message ?? error.message ?? 'Lỗi kết nối máy chủ';
             const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+            const isSilentLog = originalRequest?.url?.includes('/v3/app/logs');
 
             // [HARDENING] Circuit Breaker
             if (!status || status >= 500) {
-                failureCount++;
-                if (failureCount >= MAX_FAILURES) {
-                    console.error(`[CircuitBreaker] OPEN: Quá ${MAX_FAILURES} lỗi liên tiếp. Tạm dừng request trong 30s.`);
-                    circuitOpen = true;
-                    circuitResetTime = Date.now() + RESET_TIMEOUT_MS;
+                if (!isSilentLog) {
+                    failureCount++;
+                    if (failureCount >= MAX_FAILURES) {
+                        console.error(`[CircuitBreaker] OPEN: Quá ${MAX_FAILURES} lỗi liên tiếp. Tạm dừng request trong 30s.`);
+                        circuitOpen = true;
+                        circuitResetTime = Date.now() + RESET_TIMEOUT_MS;
+                    }
                 }
             } else if (status < 500 && status !== 429) {
                 failureCount = 0;
                 circuitOpen = false;
             }
 
-            if (API_LOG_CONFIG.errors) {
+            if (API_LOG_CONFIG.errors && !isSilentLog) {
                 console.warn(`[ApiClient] Request inhibited ${status} | trace: ${traceId} | ${message}`);
             }
 
@@ -240,7 +245,11 @@ function setupInterceptors(targetInstance: AxiosInstance) {
             if (status === 503) {
                 throw new ApiError('Hệ thống đang bảo trì. Vui lòng thử lại sau.', 503, traceId);
             }
-            if (!error.response) throw new ApiError('Không có kết nối mạng. Kiểm tra Wifi hoặc 4G.', 0, 'network-error');
+            if (!error.response) {
+                if (isSilentLog) return Promise.reject(new ApiError('Silent Logger Error', 0, 'none'));
+                throw new ApiError('Không có kết nối mạng. Kiểm tra Wifi hoặc 4G.', 0, 'network-error');
+            }
+            if (isSilentLog) return Promise.reject(new ApiError('Silent', status ?? 500, traceId));
             throw new ApiError(message, status ?? 500, traceId, envelope?.errors);
         }
     );
@@ -282,15 +291,50 @@ async function fetchSafe<TReq extends z.ZodTypeAny, TRes extends z.ZodTypeAny>(
     }
     const payload = parsedReq.success ? parsedReq.data : data;
 
+    // [HARDENING] Path Parameters replacement (e.g. /users/{id} -> /users/123)
+    let finalPath: string = endpoint.path;
+    if (payload && typeof payload === 'object') {
+        Object.keys(payload).forEach(key => {
+            const placeholder = `{${key}}`;
+            if (finalPath.includes(placeholder)) {
+                finalPath = finalPath.replace(placeholder, String((payload as any)[key]));
+            }
+        });
+    }
+
+    // [MEDIA] Handle Multipart Form Data
+    const isMultipart = (endpoint as any).isMultipart || false;
+    let requestPayload: any = payload;
+    let requestHeaders: Record<string, string> = {};
+
+    if (isMultipart && payload && typeof payload === 'object') {
+        const formData = new FormData();
+        Object.keys(payload).forEach(key => {
+            const value = (payload as any)[key];
+            if (value !== undefined && value !== null) {
+                // Nếu là file của React Native (có uri)
+                if (typeof value === 'object' && value.uri) {
+                    formData.append(key, value as any);
+                } else {
+                    formData.append(key, String(value));
+                }
+            }
+        });
+        requestPayload = formData;
+        requestHeaders['Content-Type'] = 'multipart/form-data';
+    }
+
     // 2. Execute Request
     let axiosRes: AxiosResponse<any>;
     try {
-        if (method === 'GET') axiosRes = await delegate.get(endpoint.path, { params: payload });
-        else if (method === 'POST') axiosRes = await delegate.post(endpoint.path, payload);
-        else if (method === 'PUT') axiosRes = await delegate.put(endpoint.path, payload);
-        else axiosRes = await delegate.delete(endpoint.path);
-    } catch (err) {
-        if (API_LOG_CONFIG.errors) console.error(`[ApiClient] Request failed for ${endpoint.path}`, err);
+        if (method === 'GET') axiosRes = await delegate.get(finalPath, { params: payload });
+        else if (method === 'POST') axiosRes = await delegate.post(finalPath, requestPayload as any, { headers: requestHeaders });
+        else if (method === 'PUT') axiosRes = await delegate.put(finalPath, requestPayload as any, { headers: requestHeaders });
+        else axiosRes = await delegate.delete(finalPath);
+    } catch (err: any) {
+        // [HARDENING] Trả về fallbackRes tĩnh lặng cho SDUI/Dữ liệu hiển thị.
+        // Bỏ console.error để tránh log console đỏ trên UI khi lỗi 4xx
+        if (API_LOG_CONFIG.errors) console.log(`[ApiClient] ℹ️ fetchSafe fallback used for ${finalPath}: ${err.message}`);
         return endpoint.fallbackRes;
     }
 
@@ -314,6 +358,70 @@ async function fetchSafe<TReq extends z.ZodTypeAny, TRes extends z.ZodTypeAny>(
     if (API_LOG_CONFIG.schemaValidation) {
         console.log(`[ApiClient] ✨ ${endpoint.path} parse successful. Data is safe.`);
     }
+    return parsedRes.data;
+}
+
+// Hàm dành riêng cho các Action / Submit Form (Login, Checkin, Bắn tin nhắn...)
+// Sẽ quăng lỗi ApiError ra ngoài để UI catch và hiển thị cảnh báo (toast/alert) thay vì ỉm đi.
+async function actionSafe<TReq extends z.ZodTypeAny, TRes extends z.ZodTypeAny>(
+    endpoint: EndpointConfig<TReq, TRes>,
+    data?: z.infer<TReq>,
+    method: 'POST' | 'PUT' | 'DELETE' = 'POST'
+): Promise<z.infer<TRes>> {
+    const delegate = getDelegate(endpoint.domain);
+
+    const parsedReq = endpoint.req.safeParse(data);
+    if (!parsedReq.success && API_LOG_CONFIG.errors) {
+        console.warn(`[ApiClient] Request Validation Failed for ${endpoint.path}`, parsedReq.error);
+    }
+    const payload = parsedReq.success ? parsedReq.data : data;
+
+    let finalPath: string = endpoint.path;
+    if (payload && typeof payload === 'object') {
+        Object.keys(payload).forEach(key => {
+            const placeholder = `{${key}}`;
+            if (finalPath.includes(placeholder)) {
+                finalPath = finalPath.replace(placeholder, String((payload as any)[key]));
+            }
+        });
+    }
+
+    const isMultipart = (endpoint as any).isMultipart || false;
+    let requestPayload: any = payload;
+    let requestHeaders: Record<string, string> = {};
+
+    if (isMultipart && payload && typeof payload === 'object') {
+        const formData = new FormData();
+        Object.keys(payload).forEach(key => {
+            const value = (payload as any)[key];
+            if (value !== undefined && value !== null) {
+                if (typeof value === 'object' && value.uri) {
+                    formData.append(key, value as any);
+                } else {
+                    formData.append(key, String(value));
+                }
+            }
+        });
+        requestPayload = formData;
+        requestHeaders['Content-Type'] = 'multipart/form-data';
+    }
+
+    // Không dùng try-catch ở đây để quăng lỗi lên Store / Screen
+    let axiosRes: AxiosResponse<any>;
+    if (method === 'POST') axiosRes = await delegate.post(finalPath, requestPayload as any, { headers: requestHeaders });
+    else if (method === 'PUT') axiosRes = await delegate.put(finalPath, requestPayload as any, { headers: requestHeaders });
+    else axiosRes = await delegate.delete(finalPath);
+
+    const parsedRes = endpoint.res.safeParse(axiosRes.data);
+    if (!parsedRes.success) {
+        if (API_LOG_CONFIG.schemaValidation) {
+            console.group(`[ApiClient] ❌ SCHEMA MISMATCH for ${endpoint.path}`);
+            console.error('Issues:', JSON.stringify(parsedRes.error.format(), null, 2));
+            console.groupEnd();
+        }
+        throw new ApiError('Dữ liệu từ máy chủ không hợp lệ.', 500, 'schema-mismatch');
+    }
+
     return parsedRes.data;
 }
 
@@ -343,6 +451,8 @@ export const ApiClient = {
     get,
     post,
     fetchSafe,
+    actionSafe,
+    postSafe: <TReq extends z.ZodTypeAny, TRes extends z.ZodTypeAny>(endpoint: EndpointConfig<TReq, TRes>, data?: z.infer<TReq>) => fetchSafe(endpoint, data, 'POST'),
     uploadFormData,
     registerLogoutHandler,
 };

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Quốc Việt App",
     "slug": "quocviet-super-app",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -32,7 +32,7 @@
     },
     "android": {
       "package": "com.qvc.quocvietsuperapp",
-      "versionCode": 1,
+      "versionCode": 3,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1E3A8A"
@@ -49,7 +49,8 @@
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.POST_NOTIFICATIONS"
-      ]
+      ],
+      "usesCleartextTraffic": true
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -86,16 +87,17 @@
         }
       ],
       "expo-secure-store",
-      "expo-local-authentication",
-      "@sentry/react-native"
+      "expo-local-authentication"
     ],
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
       "eas": {
-        "projectId": "YOUR_EAS_PROJECT_ID"
-      }
-    }
+        "projectId": "212382b5-9576-42ef-868d-6c947ddb8369"
+      },
+      "router": {}
+    },
+    "owner": "taindqvc"
   }
 }

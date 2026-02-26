@@ -13,9 +13,12 @@ import * as Location from 'expo-location';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as Crypto from 'expo-crypto';
 import * as Application from 'expo-application';
-import Constants from 'expo-constants';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Platform } from 'react-native';
 import { Env } from '../config/env';
+import { RemoteLogger } from './RemoteLogger';
+
+const IS_EXPO_GO = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 // ─── Hằng số Mock (dùng khi Simulator / Antigravity) ─────────────────────────
 const MOCK_LOCATION = {
@@ -34,7 +37,7 @@ export interface SafeLocation {
     is_mock: boolean;
 }
 
-async function getLocation(): Promise<SafeLocation> {
+async function getLocation(shouldRequest = true): Promise<SafeLocation> {
     const shouldUseMock = !Device.isDevice;
 
     if (shouldUseMock) {
@@ -43,11 +46,17 @@ async function getLocation(): Promise<SafeLocation> {
     }
 
     try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
+        const { status: existingStatus } = await Location.getForegroundPermissionsAsync();
+        let status = existingStatus;
+
+        if (status !== 'granted' && shouldRequest) {
+            const { status: askedStatus } = await Location.requestForegroundPermissionsAsync();
+            status = askedStatus;
+        }
 
         if (status !== 'granted') {
-            console.warn('[HardwareService] GPS Permission Denied.');
-            throw new Error('Quyền định vị bị từ chối');
+            if (shouldRequest) RemoteLogger.warn('[HardwareService] GPS Permission Denied. Using Mock.');
+            return MOCK_LOCATION;
         }
 
         // [HARDENING]: Timeout check 10s để tránh treo UI
@@ -61,7 +70,10 @@ async function getLocation(): Promise<SafeLocation> {
 
         const loc = await Promise.race([locationPromise, timeoutPromise]);
 
-        if (!loc) throw new Error('NO_LOCATION_DATA');
+        if (!loc) {
+            RemoteLogger.warn('[HardwareService] No location data. Using Mock.');
+            return MOCK_LOCATION;
+        }
 
         return {
             latitude: loc.coords.latitude,
@@ -70,8 +82,9 @@ async function getLocation(): Promise<SafeLocation> {
             is_mock: loc.mocked ?? false,
         };
     } catch (err: any) {
-        console.error(`[HardwareService] Location Fetch Error: ${err.message}.`);
-        throw err;
+        RemoteLogger.error(`[HardwareService] Location Fetch Error: ${err.message}. Using Fallback.`);
+        // [FAIL-SAFE]: Không bao giờ throw lỗi ra ngoài để tránh trắng màn hình
+        return MOCK_LOCATION;
     }
 }
 
@@ -162,4 +175,5 @@ export const HardwareService = {
     generateUUID,
     MOCK_LOCATION,
     isSimulator: () => !Device.isDevice,
+    isExpoGo: () => IS_EXPO_GO,
 };

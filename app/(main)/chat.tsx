@@ -1,24 +1,51 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { View, Text, FlatList, RefreshControl, StyleSheet, Image, TouchableOpacity } from 'react-native';
-import { SafeScreen } from '../../src/components/layout/SafeScreen';
-import { SCREEN_CONFIGS } from '../../src/config/ScreenConfigs';
+import { ScreenWrapper } from '../../src/components/layout/ScreenWrapper';
 import { socketService } from '../../src/services/SocketService';
 import { useAuthStore } from '../../src/stores/useAuthStore';
+import { useChatStore } from '../../src/stores/useChatStore';
+import { router } from 'expo-router';
 
 export default function ChatScreen() {
     const { user } = useAuthStore();
+    const { conversations, isLoadingConvos, fetchConversations, updateConversationLatest } = useChatStore();
 
     useEffect(() => {
         socketService.init();
+        fetchConversations(); // Lấy data khi vừa vô màn hình
+
+        // Listen Real-time global cho User hiện tại (Tất cả tin nhắn nhắm đến user này)
+        if (user?.id) {
+            socketService.listenPrivate(`App.Models.User.${user.id}`, 'MessageSent', (data) => {
+                console.log('[Real-time] Vừa nhận tin nhắn mới:', data);
+                if (data.message) {
+                    // Update preview ở tab Hội thoại
+                    updateConversationLatest(
+                        data.message.conversation_id,
+                        data.message.content,
+                        data.message.created_at,
+                        true
+                    );
+                }
+            });
+        }
+
+    }, [user?.id]);
+
+    const onRefresh = useCallback(() => {
+        fetchConversations(true);
     }, []);
 
-    const renderItem = ({ item }: { item: any }, refetch: () => void) => {
-        const otherParticipant = item.participants?.find((p: any) => p.user.id !== user?.id) || item.participants?.[0];
-        const displayName = item.name || otherParticipant?.user.name || 'Hội thoại';
-        const avatar = otherParticipant?.user.avatar || null;
+    const renderItem = ({ item }: { item: any }) => {
+        const otherParticipant = item.participants?.find((p: any) => p.user?.id !== user?.id) || item.participants?.[0];
+        const displayName = item.name || otherParticipant?.user?.name || 'Hội thoại';
+        const avatar = otherParticipant?.user?.avatar || null;
 
         return (
-            <TouchableOpacity style={styles.convoItem}>
+            <TouchableOpacity
+                style={styles.convoItem}
+                onPress={() => router.push(`/chat/${item.id}`)}
+            >
                 <View style={styles.avatarWrapper}>
                     {avatar ? (
                         <Image source={{ uri: avatar }} style={styles.avatar} />
@@ -32,7 +59,7 @@ export default function ChatScreen() {
 
                 <View style={styles.convoBody}>
                     <View style={styles.convoHeader}>
-                        <Text style={styles.convoName} numberOfLines={1}>{displayName}</Text>
+                        <Text style={styles.convoName} numberOfLines={1}>{displayName || 'Hội thoại'}</Text>
                         <Text style={styles.convoTime}>{item.last_message_at ? new Date(item.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</Text>
                     </View>
                     <Text style={styles.lastMsg} numberOfLines={1}>{item.last_message_content || 'Bắt đầu trò chuyện...'}</Text>
@@ -42,53 +69,62 @@ export default function ChatScreen() {
     };
 
     return (
-        <SafeScreen config={SCREEN_CONFIGS.CHAT} showScroll={false}>
-            {(conversations, isRefreshing, refetch) => (
-                <View style={styles.container}>
-                    <View style={styles.absoluteActions}>
-                        <TouchableOpacity style={styles.newChatBtn}>
-                            <Text style={styles.newChatIcon}>📝</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    <FlatList
-                        data={conversations}
-                        renderItem={(props) => renderItem(props, refetch)}
-                        keyExtractor={(item) => item.id.toString()}
-                        contentContainerStyle={styles.listContent}
-                        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refetch} tintColor="#3b82f6" />}
-                        ListEmptyComponent={
-                            <View style={styles.emptyState}>
-                                <Text style={styles.emptyTxt}>Chưa có hội thoại nào.</Text>
-                                <Text style={styles.emptySub}>Hãy bắt đầu trò chuyện với đồng nghiệp.</Text>
-                            </View>
-                        }
-                    />
+        <ScreenWrapper showOfflineBanner={true}>
+            <View style={styles.container}>
+                <View style={styles.header}>
+                    <Text style={styles.headerTitle}>Hội thoại nội bộ</Text>
+                    <TouchableOpacity
+                        style={styles.newChatBtn}
+                        onPress={() => router.push('/chat/create')}
+                    >
+                        <Text style={styles.newChatIcon}>📝</Text>
+                    </TouchableOpacity>
                 </View>
-            )}
-        </SafeScreen>
+
+                <FlatList
+                    data={conversations}
+                    renderItem={renderItem}
+                    keyExtractor={(item) => String(item.id || Math.random())}
+                    contentContainerStyle={styles.listContent}
+                    refreshControl={<RefreshControl refreshing={isLoadingConvos} onRefresh={onRefresh} tintColor="#3b82f6" />}
+                    ListEmptyComponent={
+                        <View style={styles.emptyState}>
+                            <Text style={styles.emptyTxt}>Chưa có hội thoại nào</Text>
+                            <Text style={styles.emptySub}>Hãy bắt đầu trò chuyện với đồng nghiệp.</Text>
+                        </View>
+                    }
+                />
+            </View>
+        </ScreenWrapper>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1 },
-    absoluteActions: {
-        position: 'absolute',
-        top: -55,
-        right: 16,
-        zIndex: 10,
+    container: { flex: 1, backgroundColor: '#f1f5f9' },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingTop: 16,
+        paddingBottom: 12,
+        backgroundColor: '#f8fafc',
     },
+    headerTitle: { fontSize: 28, fontWeight: 'bold', color: '#0f172a' },
     newChatBtn: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: '#fff',
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#3b82f6',
         alignItems: 'center',
         justifyContent: 'center',
-        elevation: 2,
+        shadowColor: '#3b82f6',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        elevation: 4,
     },
-    newChatIcon: { fontSize: 20 },
-    listContent: { paddingHorizontal: 16, paddingBottom: 40 },
+    newChatIcon: { fontSize: 16, color: '#fff' },
+    listContent: { paddingHorizontal: 16, paddingBottom: 40, paddingTop: 16 },
     convoItem: {
         flexDirection: 'row',
         paddingVertical: 12,

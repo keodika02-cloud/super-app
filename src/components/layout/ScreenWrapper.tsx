@@ -10,11 +10,13 @@ import {
     View,
     Text,
     StatusBar,
+    Platform,
     type ViewStyle,
     type StyleProp,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import NetInfo, { useNetInfo } from '@react-native-community/netinfo';
+import { ErrorBoundary } from '../error/ErrorBoundary';
 
 interface ScreenWrapperProps {
     children: React.ReactNode;
@@ -35,7 +37,11 @@ export function ScreenWrapper({
     return (
         <View style={{ flex: 1, backgroundColor }}>
             <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
-                <StatusBar barStyle="light-content" translucent />
+                <StatusBar
+                    barStyle="light-content"
+                    translucent={Platform.OS === 'ios'}
+                    backgroundColor={backgroundColor}
+                />
 
                 {/* Offline Banner */}
                 {showOfflineBanner && isOffline && (
@@ -55,7 +61,9 @@ export function ScreenWrapper({
                     </View>
                 )}
 
-                <View style={[{ flex: 1 }, style]}>{children}</View>
+                <ErrorBoundary>
+                    <View style={[{ flex: 1 }, style]}>{children}</View>
+                </ErrorBoundary>
             </SafeAreaView>
         </View>
     );
