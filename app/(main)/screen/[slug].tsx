@@ -12,8 +12,18 @@ export default function DynamicScreen() {
     const params = useLocalSearchParams<{ slug: string; title?: string }>();
     const title = params.title || 'Tính năng mới';
 
-    // Slug có thể là tên biến ('goto_more') HOẶC một đường link trực tiếp ('https://...')
-    const slug = params.slug ? decodeURIComponent(params.slug) : '';
+    // Slug có thể là tên biến ('goto_more') HOẶC một chuỗi mã hóa HEX ('hex_68747...') đại diện cho URL trực tiếp.
+    let slug = params.slug ? decodeURIComponent(params.slug) : '';
+
+    // [Bypass Expo Router Bug]: Giải mã chuỗi HEX lại thành URL đầy đủ
+    if (slug.startsWith('hex_')) {
+        const hexStr = slug.substring(4);
+        let decodedStr = '';
+        for (let i = 0; i < hexStr.length; i += 2) {
+            decodedStr += String.fromCharCode(parseInt(hexStr.substr(i, 2), 16));
+        }
+        slug = decodedStr;
+    }
 
     // [HARDENING]: Tạo Config động trên Runtime.
     // Việc này cho phép hiển thị BẤT KỲ màn hình nào từ Server mà App không cần update.

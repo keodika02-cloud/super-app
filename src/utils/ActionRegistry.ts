@@ -149,9 +149,17 @@ export const ActionRegistry = {
                 if (payload?.slug) {
                     const isMock = payload.slug.includes('mock');
                     console.log(`[ActionRegistry] 🔗 Điều hướng Động tới: ${payload.slug} ${isMock ? '(MOCK_DATA)' : '(REAL_DATA)'}`);
+
+                    // [Bypass Expo Router Bug]: Tránh việc router hiểu nhầm Full URL thành 1 Deep Link và văng về trang chủ
+                    let safeSlug = payload.slug;
+                    if (safeSlug.startsWith('http')) {
+                        const toHex = (str: string) => Array.from(str).map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join('');
+                        safeSlug = `hex_${toHex(safeSlug)}`;
+                    }
+
                     router.push({
                         pathname: '/(main)/screen/[slug]',
-                        params: { slug: encodeURIComponent(payload.slug), title: payload.title || 'Tính năng' }
+                        params: { slug: safeSlug, title: payload.title || 'Tính năng' }
                     } as any);
                 } else {
                     console.warn(`[ActionRegistry] ❌ Lệnh OPEN_DYNAMIC_SCREEN thất bại do thiếu payload.slug`);
