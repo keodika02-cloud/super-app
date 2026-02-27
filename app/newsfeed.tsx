@@ -170,7 +170,6 @@ export default function NewsfeedScreen() {
                 <FlashList
                     data={feedData || []}
                     renderItem={renderFeedItem}
-                    estimatedItemSize={200}
                     keyExtractor={(item) => String(item.id)}
                     contentContainerStyle={styles.list}
                     onRefresh={refetch}

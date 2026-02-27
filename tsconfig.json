@@ -24,6 +24,9 @@
       "@config/*": [
         "./src/config/*"
       ],
+      "@core/*": [
+        "./src/core/*"
+      ],
       "@hooks/*": [
         "./src/hooks/*"
       ],

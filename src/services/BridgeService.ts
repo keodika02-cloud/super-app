@@ -48,25 +48,39 @@ function buildTokenInjectionScript(token: string): string {
     return `
     (function() {
       try {
-        // [SECURITY_FIX]: Prevent XSS by strictly serializing the token.
-        // Never use string interpolation like \`\${token}\` inside injected scripts.
         const safeToken = ${JSON.stringify(token)};
+        // 1. Lưu vào localStorage (đa dạng key để chắc chắn)
         window.localStorage.setItem('qvc_app_token', safeToken);
+        window.localStorage.setItem('token', safeToken);
         window.localStorage.setItem('qvc_native_mode', 'true');
         window.localStorage.setItem('qvc_platform', 'mobile_app');
-        // Nếu CRM đang ở trang login → redirect về home
+        
+        // 2. Lưu vào Cookie (phòng trường hợp SSR/Backend check cookie)
+        // Domain .maytinhquocviet.com để các subdomain đều thấy
+        const cookieBase = "qvc_app_token=" + safeToken + "; path=/; domain=.maytinhquocviet.com; max-age=31536000";
+        document.cookie = cookieBase;
+        document.cookie = "token=" + safeToken + "; path=/; domain=.maytinhquocviet.com; max-age=31536000";
+
+        console.log('[Bridge] Token injected into localStore and Cookies');
+
+        // 3. Nếu đang ở trang login, thử dispatch event hoặc redirect về main
         if (
           window.location.pathname.includes('/login') ||
           window.location.pathname === '/'
         ) {
-          // CRM sẽ tự detect token và redirect
+          console.log('[Bridge] On login/root page, triggering native_login event');
           window.dispatchEvent(new Event('qvc_native_login'));
+          
+          // Thử gọi hàm login nếu web có sẵn
+          if (typeof window.processNativeLogin === 'function') {
+             window.processNativeLogin(safeToken);
+          }
         }
       } catch(e) {
         console.warn('Bridge inject lỗi:', e);
       }
     })();
-    true; // Bắt buộc return true để WebView không báo lỗi
+    true;
   `;
 }
 
@@ -86,14 +100,25 @@ function isAuthorizedDomain(url: string | undefined): boolean {
 
 async function injectToken(webViewRef: RefObject<WebView>, currentUrl?: string): Promise<void> {
     const token = await StorageService.getToken();
-    if (!token || !webViewRef.current) return;
+    console.log(`[BridgeService] 🛡️ Attempting to inject token for: ${currentUrl}`);
 
-    // [SECURITY_CHECK]: Chỉ bơm token vào đúng trang CRM và các site nội bộ tin cậy.
-    if (!isAuthorizedDomain(currentUrl)) {
-        console.warn(`[BridgeService] Chặn bơm token vào domain không an toàn: ${currentUrl}`);
+    if (!token) {
+        console.warn('[BridgeService] ❌ No token found in StorageService. Skipping injection.');
         return;
     }
 
+    if (!webViewRef.current) {
+        console.warn('[BridgeService] ❌ WebView ref is null. Cannot inject.');
+        return;
+    }
+
+    // [SECURITY_CHECK]: Chỉ bơm token vào đúng trang CRM và các site nội bộ tin cậy.
+    if (!isAuthorizedDomain(currentUrl)) {
+        console.warn(`[BridgeService] 🛑 Blocked: Domain is not authorized for token injection: ${currentUrl}`);
+        return;
+    }
+
+    console.log('[BridgeService] 🚀 Injecting token and native_mode flags into localStorage...');
     const script = buildTokenInjectionScript(token);
     webViewRef.current.injectJavaScript(script);
 }

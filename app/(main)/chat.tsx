@@ -4,12 +4,12 @@ import { FlashList } from '@shopify/flash-list';
 import { ScreenWrapper } from '@components/layout/ScreenWrapper';
 import { socketService } from '@services/SocketService';
 import { useAuthStore } from '@stores/useAuthStore';
-import { useChatStore } from '@stores/useChatStore';
+import { useChatStore, Conversation } from '@stores/useChatStore';
 import { useRouter } from 'expo-router';
 
 // ─── Sub-Components ──────────────────────────────────────────────────────────
 
-const ConversationItem = memo(({ item, currentUserId, onPress }: { item: any, currentUserId: number, onPress: () => void }) => {
+const ConversationItem = memo(({ item, currentUserId, onPress }: { item: Conversation, currentUserId: number, onPress: () => void }) => {
     const otherParticipant = item.participants?.find((p: any) => p.user?.id !== currentUserId) || item.participants?.[0];
     const displayName = item.name || otherParticipant?.user?.name || 'Hội thoại';
     const avatar = otherParticipant?.user?.avatar || null;
@@ -73,7 +73,7 @@ export default function ChatScreen() {
         router.push(`/chat/${id}`);
     }, [router]);
 
-    const renderItem = ({ item }: { item: any }) => (
+    const renderItem = ({ item }: { item: Conversation }) => (
         <ConversationItem
             item={item}
             currentUserId={user?.id || 0}
@@ -98,7 +98,6 @@ export default function ChatScreen() {
                     <FlashList
                         data={conversations}
                         renderItem={renderItem}
-                        estimatedItemSize={80}
                         keyExtractor={(item) => String(item.id)}
                         contentContainerStyle={styles.listContent}
                         onRefresh={onRefresh}
