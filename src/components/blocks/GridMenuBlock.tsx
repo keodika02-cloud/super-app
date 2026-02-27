@@ -10,7 +10,7 @@ export const GridMenuBlock = ({ data }: { data: any }) => (
                 <TouchableOpacity
                     key={idx}
                     style={styles.gridItem}
-                    onPress={() => ActionRegistry.execute(item.action)}
+                    onPress={() => ActionRegistry.execute(item.action, item.payload, item.label)}
                 >
                     <View style={[styles.iconWrapper, item.bg_color && { backgroundColor: item.bg_color }]}>
                         <Text style={styles.gridIcon}>{item.icon || '❓'}</Text>

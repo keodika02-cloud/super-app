@@ -12,6 +12,9 @@
  */
 import { router } from 'expo-router';
 import { Alert, Linking } from 'react-native';
+import { ApiClient } from './../services/ApiClient';
+import { EndpointConfig } from '../config/api-endpoints';
+import z from 'zod';
 
 export type SupportedAction =
     // ─── App Native Screens ────────────────────────────────────────────
@@ -37,6 +40,8 @@ export type SupportedAction =
     | 'OPEN_FEATURE_CALENDAR'
     | 'OPEN_FEATURE_TASKS'
     | 'OPEN_FEATURE_NOTIFICATIONS'
+    | 'OPEN_DYNAMIC_SCREEN'       // Generic SDUI SCREEN theo slug
+    | 'API_REQUEST_NO_UI'         // Bắn API ngầm (Delete/Accept) không qua UI form
     | 'OPEN_SETTINGS'
     // ─── Web/CRM ───────────────────────────────────────────────────────
     | 'OPEN_WEB_CRM'
@@ -56,8 +61,10 @@ export type SupportedAction =
     | 'NO_ACTION';
 
 export const ActionRegistry = {
-    execute(action: SupportedAction | string, payload?: any) {
-        console.log(`[ActionRegistry] 🚀 Triggering: ${action}`, payload ?? '');
+    execute(action: SupportedAction | string, payload?: any, contextLabel?: string) {
+        if (action !== 'NONE') {
+            console.log(`[ActionRegistry] 👆 Bấm nút: [${contextLabel || 'Thẻ giao diện'}] -> Gọi lệnh: ${action}`);
+        }
 
         switch (action) {
             // ─── ATTENDANCE / CHECKIN ──────────────────────────────────────
@@ -138,6 +145,57 @@ export const ActionRegistry = {
                 break;
 
             // ─── GENERIC NAVIGATE ──────────────────────────────────────────
+            case 'OPEN_DYNAMIC_SCREEN':
+                if (payload?.slug) {
+                    const isMock = payload.slug.includes('mock');
+                    console.log(`[ActionRegistry] 🔗 Điều hướng Động tới: ${payload.slug} ${isMock ? '(MOCK_DATA)' : '(REAL_DATA)'}`);
+                    router.push({
+                        pathname: '/(main)/screen/[slug]',
+                        params: { slug: encodeURIComponent(payload.slug), title: payload.title || 'Tính năng' }
+                    } as any);
+                } else {
+                    console.warn(`[ActionRegistry] ❌ Lệnh OPEN_DYNAMIC_SCREEN thất bại do thiếu payload.slug`);
+                }
+                break;
+            case 'API_REQUEST_NO_UI':
+                if (payload?.url) {
+                    const method = (payload.method || 'POST').toUpperCase();
+                    const body = payload.body || {};
+                    const confirmMsg = payload.confirm_message;
+
+                    const executeApi = async () => {
+                        try {
+                            const config: EndpointConfig<any, any> = {
+                                path: payload.url,
+                                req: z.any() as any,
+                                res: z.any(),
+                                fallbackRes: {}
+                            };
+
+                            if (method === 'DELETE' || method === 'PUT') {
+                                // @ts-ignore
+                                await ApiClient.actionSafe(config, body, method);
+                            } else {
+                                await ApiClient.post(payload.url, body);
+                            }
+
+                            Alert.alert('Thành công', payload.success_message || 'Thao tác hoàn tất!');
+                            // TODO: trigger refresh màn hình hiện tại nếu cần
+                        } catch (e: any) {
+                            Alert.alert('Thất bại', e?.message || 'Không thể thực hiện yêu cầu.');
+                        }
+                    };
+
+                    if (confirmMsg) {
+                        Alert.alert('Xác nhận', confirmMsg, [
+                            { text: 'Hủy', style: 'cancel' },
+                            { text: 'Đồng ý', onPress: executeApi, style: 'destructive' }
+                        ]);
+                    } else {
+                        executeApi();
+                    }
+                }
+                break;
             case 'NAVIGATE':
                 if (payload?.path) {
                     router.push(payload.path);

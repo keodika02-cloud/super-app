@@ -8,7 +8,7 @@
 import { Platform } from 'react-native';
 import { ApiClient } from './ApiClient';
 import { API_ENDPOINTS } from '../config/api-endpoints';
-import { HardwareService } from './HardwareService';
+import { getDeviceInfo } from '../utils/DeviceMetadata';
 
 export type LogLevel = 'INFO' | 'WARN' | 'ERROR' | 'FATAL';
 
@@ -21,7 +21,7 @@ class RemoteLoggerService {
     public async log(level: LogLevel, message: string, context: any = {}) {
         if (!this.isEnabled) return;
 
-        const deviceInfo = HardwareService.getDeviceInfo();
+        const deviceInfo = getDeviceInfo();
         const payload = {
             level,
             message,
@@ -31,7 +31,7 @@ class RemoteLoggerService {
                     model: deviceInfo.model,
                     os: Platform.OS,
                     os_version: Platform.Version,
-                    is_emulator: !deviceInfo.isDevice,
+                    is_emulator: !deviceInfo.is_device,
                 },
                 timestamp: new Date().toISOString(),
             },

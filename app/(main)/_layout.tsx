@@ -45,6 +45,8 @@ export default function MainLayout() {
             <Tabs.Screen name="reports" options={{ href: null }} />
             <Tabs.Screen name="notifications" options={{ href: null }} />
             <Tabs.Screen name="tasks" options={{ href: null }} />
+            {/* Màn hình động SDUI (Cho phép mở tính năng mới mà không cần Update App) */}
+            <Tabs.Screen name="screen/[slug]" options={{ href: null }} />
         </Tabs>
     );
 }

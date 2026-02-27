@@ -87,7 +87,7 @@ export function ProfileScreen() {
         { id: 'biometric', icon: '👤', label: 'Xác thực sinh trắc học', hasSwitch: true },
         { id: 'share', icon: '🔗', label: 'Chia sẻ với bạn bè', action: handleShareApp },
         { id: 'rate', icon: '⭐', label: 'Đánh giá ứng dụng', action: () => Alert.alert('Cảm ơn', 'Cảm ơn bạn đã đánh giá!') },
-        { id: 'policy', icon: '📄', label: 'Chính sách & Điều khoản', action: () => openLink(API_ENDPOINTS.PUBLIC?.TERMS || 'https://crm.maytinhquocviet.com/privacy') },
+        { id: 'policy', icon: '📄', label: 'Chính sách & Điều khoản', action: () => openLink('https://crm.maytinhquocviet.com/privacy') },
         { id: 'version', icon: 'ℹ️', label: 'Phiên bản hiện tại', rightText: appVersion },
         { id: 'theme', icon: '🎨', label: 'Đổi giao diện', action: () => Alert.alert('Giao diện', 'Hệ thống đang sử dụng giao diện Sáng mặc định.') },
         { id: 'wallpaper', icon: '🖼️', label: 'Cài đặt hình nền', action: () => Alert.alert('Hình nền', 'Sắp ra mắt tính năng đổi hình nền.') },

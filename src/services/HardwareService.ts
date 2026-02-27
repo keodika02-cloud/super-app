@@ -15,6 +15,7 @@ import * as Crypto from 'expo-crypto';
 import * as Application from 'expo-application';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Platform } from 'react-native';
+import { getDeviceInfo } from '../utils/DeviceMetadata';
 import { Env } from '../config/env';
 import { RemoteLogger } from './RemoteLogger';
 
@@ -141,15 +142,7 @@ async function hasBiometric(): Promise<boolean> {
 
 // ─── Device Info ─────────────────────────────────────────────────────────────
 
-function getDeviceInfo() {
-    return {
-        model: Device.modelName ?? 'Unknown',
-        os: `${Platform.OS} ${Platform.Version}`,
-        brand: Device.brand ?? 'Unknown',
-        device_id: Application.applicationId ?? Constants.sessionId ?? 'unknown_device',
-        is_device: Device.isDevice,
-    };
-}
+// Moved to src/utils/DeviceMetadata.ts
 
 // ─── UUID (dùng cho idempotency checkin, offline actions) ────────────────────
 

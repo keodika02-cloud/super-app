@@ -88,6 +88,13 @@ export function registerLogoutHandler(fn: () => void) {
     _logoutFn = fn;
 }
 
+// ─── Tầng Kiểm duyệt Token Đa Tên Miền (White-list) ─────────────────────────
+let _dynamicAuthDomains: string[] = [];
+export function setDynamicAuthDomains(domains: string[]) {
+    _dynamicAuthDomains = domains;
+    console.log(`[ApiClient] 🛡️ Dynamic Auth Domains updated:`, domains);
+}
+
 // ─── Token Refresh Queue & 429 Config & Circuit Breaker ───────────────
 let isRefreshing = false;
 let failedQueue: { resolve: (value?: unknown) => void; reject: (reason?: any) => void; config: InternalAxiosRequestConfig }[] = [];
@@ -101,10 +108,10 @@ const RESET_TIMEOUT_MS = 30000; // 30s pause after 5 continuous failures
 
 // ─── Lựa chọn hiển thị Debug trên Terminal ────────────────────────────────────
 export const API_LOG_CONFIG = {
-    request: true,          // Bật/tắt log khi bắn request mới (📡 Requesting...)
+    request: false,         // Bật/tắt log khi bắn request mới (TẮT ĐỂ APP NHANH HƠN)
     response: false,        // Bật/tắt log báo nhận thành công envelope.
-    schemaValidation: true, // Bật/tắt log báo parse ZOD thành công (✨ ...) và Lỗi Mismatch
-    errors: true,           // Bật/tắt log show chi tiết trace lỗi mạng (Inhibited / Business Logic)
+    schemaValidation: false,// Bật/tắt log parse ZOD thành công (TẮT ĐỂ TRÁNH LAG TRÊN JS THREAD)
+    errors: true,           // Bật/tắt log show chi tiết trace lỗi mạng (NÊN BẬT)
 };
 
 /**
@@ -122,11 +129,24 @@ function setupInterceptors(targetInstance: AxiosInstance) {
         }
 
         if (API_LOG_CONFIG.request) {
-            console.log(`[ApiClient] 📡 Requesting: ${config.baseURL}${config.url}`);
+            console.log(`[ApiClient] 📡 Requesting: ${config.url?.startsWith('http') ? config.url : (config.baseURL || '') + (config.url || '')}`);
         }
 
         const token = await StorageService.getToken();
-        if (token && config.headers) {
+
+        // [HARDENING] Yêu cầu Bảo Mật Trọng Tâm:
+        // App gọi tự do đa hệ sinh thái. Nhưng Token nội bộ (CRM) CHỈ truyền cho danh sách an toàn:
+        // 1. Mặc định cứng: maytinhquocviet.com (luôn luôn)
+        // 2. Linh hoạt: Do Backend cấu hình trong mảng `auth_domains` của UserProfile
+        const fullUrl = config.url?.startsWith('http') ? config.url : `${config.baseURL || ''}${config.url || ''}`;
+
+        const isCoreDomain = !fullUrl.startsWith('http')
+            || fullUrl.includes('.maytinhquocviet.com')
+            || fullUrl.includes('//maytinhquocviet.com');
+
+        const isDynamicDomain = Array.isArray(_dynamicAuthDomains) && _dynamicAuthDomains.some(domain => domain && domain.trim() !== '' && fullUrl.includes(domain));
+
+        if (token && config.headers && (isCoreDomain || isDynamicDomain)) {
             config.headers.Authorization = `Bearer ${token}`;
         }
         return config;
@@ -332,9 +352,26 @@ async function fetchSafe<TReq extends z.ZodTypeAny, TRes extends z.ZodTypeAny>(
         else if (method === 'PUT') axiosRes = await delegate.put(finalPath, requestPayload as any, { headers: requestHeaders });
         else axiosRes = await delegate.delete(finalPath);
     } catch (err: any) {
-        // [HARDENING] Trả về fallbackRes tĩnh lặng cho SDUI/Dữ liệu hiển thị.
-        // Bỏ console.error để tránh log console đỏ trên UI khi lỗi 4xx
-        if (API_LOG_CONFIG.errors) console.log(`[ApiClient] ℹ️ fetchSafe fallback used for ${finalPath}: ${err.message}`);
+        if (API_LOG_CONFIG.errors) {
+            console.error(`[ApiClient] ❌ Lỗi gọi API [${method}] tới: ${finalPath}`);
+            console.error(`Chi tiết lỗi RAW:`, err.message, err.response?.data);
+        }
+
+        // [HARDENING] Phản hồi lỗi trực tiếp lên UI nếu là mảng Layout
+        if (Array.isArray(endpoint.fallbackRes)) {
+            return [
+                {
+                    type: 'UnknownBlock',
+                    id: 'api-network-error',
+                    data: {
+                        error: `LỖI MẠNG ĐẾN: ${finalPath}`,
+                        details: `Network Info: ${err.message}`
+                    }
+                },
+                ...endpoint.fallbackRes
+            ] as any;
+        }
+
         return endpoint.fallbackRes;
     }
 
@@ -345,13 +382,36 @@ async function fetchSafe<TReq extends z.ZodTypeAny, TRes extends z.ZodTypeAny>(
 
     const parsedRes = endpoint.res.safeParse(axiosRes.data);
     if (!parsedRes.success) {
-        if (API_LOG_CONFIG.schemaValidation) {
-            console.group(`[ApiClient] ❌ SCHEMA MISMATCH for ${endpoint.path}`);
-            console.error('The backend returned data that does not match the app schema.');
-            console.error('Issues:', JSON.stringify(parsedRes.error.format(), null, 2));
-            console.error('Actual Data:', JSON.stringify(axiosRes.data, null, 2));
-            console.groupEnd();
+        console.group(`[ApiClient] ❌ SCHEMA MISMATCH for ${endpoint.path}`);
+        console.error('The backend returned data that does not match the app schema.');
+        console.error('Issues:', JSON.stringify(parsedRes.error.format(), null, 2));
+        console.groupEnd();
+
+        // [HARDENING] Gửi log lỗi cấu trúc về Backend
+        delegate.post('/v3/app/logs', {
+            level: 'error',
+            message: `[Schema Mismatch GET] API: ${endpoint.path}`,
+            context: {
+                issues: parsedRes.error.format(),
+                actual_data: axiosRes.data,
+            }
+        }).catch(() => { });
+
+        // [HARDENING] Phản hồi lỗi trực tiếp lên UI nếu là mảng Layout
+        if (Array.isArray(endpoint.fallbackRes)) {
+            return [
+                {
+                    type: 'UnknownBlock',
+                    id: 'api-error',
+                    data: {
+                        error: `LỖI SAI CẤU TRÚC TỪ: ${endpoint.path}`,
+                        details: JSON.stringify(parsedRes.error.format(), null, 2)
+                    }
+                },
+                ...endpoint.fallbackRes
+            ] as any;
         }
+
         return endpoint.fallbackRes;
     }
 
@@ -414,12 +474,21 @@ async function actionSafe<TReq extends z.ZodTypeAny, TRes extends z.ZodTypeAny>(
 
     const parsedRes = endpoint.res.safeParse(axiosRes.data);
     if (!parsedRes.success) {
-        if (API_LOG_CONFIG.schemaValidation) {
-            console.group(`[ApiClient] ❌ SCHEMA MISMATCH for ${endpoint.path}`);
-            console.error('Issues:', JSON.stringify(parsedRes.error.format(), null, 2));
-            console.groupEnd();
-        }
-        throw new ApiError('Dữ liệu từ máy chủ không hợp lệ.', 500, 'schema-mismatch');
+        console.group(`[ApiClient] ❌ SCHEMA MISMATCH for ${endpoint.path}`);
+        console.error('Issues:', JSON.stringify(parsedRes.error.format(), null, 2));
+        console.groupEnd();
+
+        // Gửi log lỗi lên Server để Backend Fix
+        delegate.post('/v3/app/logs', {
+            level: 'error',
+            message: `[Schema Mismatch POST/PUT] API: ${endpoint.path}`,
+            context: {
+                issues: parsedRes.error.format(),
+                actual_data: axiosRes.data,
+            }
+        }).catch(() => { });
+
+        throw new ApiError('Dữ liệu từ máy chủ không hợp lệ (Lỗi lập trình Backend).', 500, 'schema-mismatch');
     }
 
     return parsedRes.data;

@@ -36,6 +36,7 @@ const GridItemSchema = z.object({
     label: z.string().optional().default('Mục mới'),
     icon: z.string().optional().default('📱'),
     action: SduiActionSchema.optional().default('NONE'),
+    payload: z.record(z.string(), z.any()).optional(),
     bg_color: z.string().optional().default('#f1f5f9'),
 });
 
@@ -57,6 +58,7 @@ const BannerDataSchema = z.object({
     title: z.string().optional().default('Thông báo mới'),
     subtitle: z.string().optional().default('Nhấn để xem chi tiết'),
     action: SduiActionSchema.optional().default('NONE'),
+    payload: z.record(z.string(), z.any()).optional(),
     action_label: z.string().optional(),
 }).catch({ title: 'Thông báo', subtitle: '', action: 'NONE' });
 

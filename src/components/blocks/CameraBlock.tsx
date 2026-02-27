@@ -10,6 +10,7 @@ interface CameraBlockProps {
         description?: string;
         context_type?: string;
         context_id?: string | number;
+        allowsEditing?: boolean;
     };
     onChange?: (uri: string) => void;
 }
@@ -26,7 +27,7 @@ export const CameraBlock: React.FC<CameraBlockProps> = ({ data, onChange }) => {
         }
 
         const result = await ImagePicker.launchCameraAsync({
-            allowsEditing: true,
+            allowsEditing: data.allowsEditing !== undefined ? data.allowsEditing : true,
             aspect: [4, 3],
             quality: 0.7,
         });

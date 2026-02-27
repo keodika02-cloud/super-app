@@ -56,14 +56,26 @@ export const SduiEngine = ({ blocks }: { blocks: SduiBlock[] }) => {
     return (
         <View style={styles.engineContainer}>
             {safeArray(blocks).map((block, index) => {
+                if (!block || typeof block !== 'object') return null;
                 const key = block.id || `block_${index}`;
-                const BlockComponent = COMPONENT_REGISTRY[block.type] || UnknownBlock;
 
-                return (
-                    <BlockBoundary key={key} blockName={block.type}>
-                        <BlockComponent type={block.type} data={block.data} />
-                    </BlockBoundary>
-                );
+                try {
+                    const BlockComponent = COMPONENT_REGISTRY[block.type] || UnknownBlock;
+                    return (
+                        <BlockBoundary key={key} blockName={block.type}>
+                            <BlockComponent type={block.type} data={block.data || {}} />
+                        </BlockBoundary>
+                    );
+                } catch (e) {
+                    // Cực kỳ an toàn: Dù Registry lỗi hay Block truyền sai tham số nặng nề
+                    return (
+                        <UnknownBlock
+                            key={key}
+                            type={block?.type || 'Lỗi Nghiêm Trọng'}
+                            data={{ error: 'Lỗi Render Block', details: 'Block này đã gây lỗi hệ thống UI (JS Crash). Đã bị cô lập.' }}
+                        />
+                    );
+                }
             })}
         </View>
     );

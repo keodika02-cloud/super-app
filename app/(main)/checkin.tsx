@@ -114,7 +114,8 @@ export default function CheckInScreen() {
                             label: 'Ảnh chân dung/Hiện trường',
                             required: true,
                             context_type: 'ATTENDANCE',
-                            context_id: 'DAILY'
+                            context_id: 'DAILY',
+                            allowsEditing: false
                         }}
                         onChange={setPhotoUri}
                     />

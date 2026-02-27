@@ -6,7 +6,7 @@
  * SplashScreen ẩn sau khi isHydrated = true để tránh nhấp nháy.
  */
 import { create } from 'zustand';
-import { ApiClient, registerLogoutHandler } from '@services/ApiClient';
+import { ApiClient, registerLogoutHandler, setDynamicAuthDomains } from '@services/ApiClient';
 import { StorageService } from '@services/StorageService';
 import { HardwareService } from '@services/HardwareService';
 import { API_ENDPOINTS } from '../config/api-endpoints';
@@ -55,6 +55,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 isLoggedIn: !!token && !!user,
                 isHydrated: true,
             });
+            if (user?.auth_domains && Array.isArray(user.auth_domains)) {
+                setDynamicAuthDomains(user.auth_domains);
+            }
         } catch (err) {
             console.error('[AuthStore] loadFromStorage lỗi:', err);
             set({ isHydrated: true });
@@ -136,6 +139,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
         await StorageService.saveToken(access_token);
         await StorageService.saveUser(user);
+
+        if (user?.auth_domains && Array.isArray(user.auth_domains)) {
+            setDynamicAuthDomains(user.auth_domains);
+        }
+
         set({ token: access_token, user: user as any, isLoggedIn: true });
 
         // Tự động đăng ký Push Token sau khi đăng nhập thành công
@@ -150,6 +158,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             await ApiClient.fetchSafe(API_ENDPOINTS.AUTH.LOGOUT, undefined, 'POST');
         } catch { }
         await StorageService.clearSession();
+        setDynamicAuthDomains([]); // Reset the whitelist on logout
         set({ token: null, user: null, isLoggedIn: false, require2FA: false, tempUserId: null });
     },
 
@@ -159,6 +168,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (!currentUser) return;
         const updated = { ...currentUser, ...partial };
         set({ user: updated });
+        if (updated.auth_domains && Array.isArray(updated.auth_domains)) {
+            setDynamicAuthDomains(updated.auth_domains);
+        }
         StorageService.saveUser(updated).catch(err => console.error('[AuthStore] updateUser persist lỗi:', err));
     },
 }));

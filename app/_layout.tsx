@@ -82,7 +82,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
         if (!isHydrated) return;
 
         const inAuth = segments[0] === '(auth)';
-        RemoteLogger.info(`Navigation Check: isLoggedIn=${isLoggedIn}, inAuth=${inAuth}, segment=${segments[0]}`);
+        // RemoteLogger.info(`Navigation Check: isLoggedIn=${isLoggedIn}, inAuth=${inAuth}, segment=${segments[0]}`);
 
         if (!isLoggedIn && !inAuth) {
             RemoteLogger.info('Redirecting to Login...');
@@ -123,13 +123,16 @@ import { asyncStoragePersister } from '../src/core/query-client';
 
 // ─── Sentry Initialization ─────────────────────────────────────────────────────
 // [HARDENING]: Ensure Sentry is initialized BEFORE the export wrap, even in dev (as no-op if no DSN)
-Sentry.init({
-    dsn: Env.EXPO_PUBLIC_SENTRY_DSN,
-    environment: Env.EXPO_PUBLIC_ENV,
-    release: Env.EXPO_PUBLIC_APP_VERSION,
-    tracesSampleRate: 0.2,
-    enabled: !__DEV__, // Chỉ thực sự active trên production
-});
+const isSentryEnabled = !!(Env.EXPO_PUBLIC_SENTRY_DSN && Env.EXPO_PUBLIC_SENTRY_DSN !== 'off');
+if (isSentryEnabled) {
+    Sentry.init({
+        dsn: Env.EXPO_PUBLIC_SENTRY_DSN,
+        environment: Env.EXPO_PUBLIC_ENV,
+        release: Env.EXPO_PUBLIC_APP_VERSION,
+        tracesSampleRate: 0.2,
+        enabled: Env.EXPO_PUBLIC_ENV === 'production',
+    });
+}
 
 // ─── Root Layout ─────────────────────────────────────────────────────────────
 
@@ -151,4 +154,4 @@ function RootLayout() {
     );
 }
 
-export default Sentry.wrap(RootLayout);
+export default isSentryEnabled ? Sentry.wrap(RootLayout) : RootLayout;

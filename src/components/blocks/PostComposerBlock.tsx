@@ -2,10 +2,12 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { CreatePostModal } from '../modals/CreatePostModal';
+import { useRouter } from 'expo-router';
 
 export const PostComposerBlock = ({ data }: { data: any }) => {
     const { user } = useAuthStore();
     const [isModalVisible, setModalVisible] = React.useState(false);
+    const router = useRouter();
 
     return (
         <View style={styles.composerContainer}>
@@ -25,7 +27,7 @@ export const PostComposerBlock = ({ data }: { data: any }) => {
                 <TouchableOpacity style={styles.composerActionBtn} onPress={() => setModalVisible(true)}>
                     <Text style={styles.actionTxt}>🖼️ Hình ảnh</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.composerActionBtn} onPress={() => setModalVisible(true)}>
+                <TouchableOpacity style={styles.composerActionBtn} onPress={() => router.push('/(main)/checkin')}>
                     <Text style={styles.actionTxt}>📍 Check-in</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.composerActionBtn} onPress={() => setModalVisible(true)}>

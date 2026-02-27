@@ -161,7 +161,7 @@ export default function NewsfeedScreen() {
             )}
 
             <ScrollView contentContainerStyle={styles.list}>
-                {isLoading && (!feedData || feedData.length === 0) ? (
+                {isLoading && (!feedData || (feedData as any[]).length === 0) ? (
                     <ActivityIndicator size="large" color="#3b82f6" style={{ marginTop: 50 }} />
                 ) : feedData && feedData.length > 0 ? (
                     feedData.map((post: any) => (

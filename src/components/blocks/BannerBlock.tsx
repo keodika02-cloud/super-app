@@ -5,7 +5,7 @@ import { ActionRegistry } from '../../utils/ActionRegistry';
 export const BannerBlock = ({ data }: { data: any }) => (
     <TouchableOpacity
         style={styles.bannerCard}
-        onPress={() => ActionRegistry.execute(data.action)}
+        onPress={() => ActionRegistry.execute(data.action, data.payload, data.title)}
     >
         <View style={styles.bannerContent}>
             <View style={styles.bannerAvatar} />

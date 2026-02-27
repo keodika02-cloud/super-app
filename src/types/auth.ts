@@ -44,6 +44,7 @@ export const UserSchema = z.object({
     role: z.string().catch('STAFF'), // Relaxed enum for backend changes
     permissions: z.array(z.string()).optional().default([]),
     status: z.string().optional().default('ACTIVE'),
+    auth_domains: z.array(z.string()).optional().default([]),
     dept_name: z.string().optional().nullish(),
     department: DepartmentSchema.optional().nullish(),
     hrm_info: HrmInfoSchema.optional().nullish(),
