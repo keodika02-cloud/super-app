@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ScrollView, RefreshControl, StyleSheet, StatusBar, Animated } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, StyleSheet, StatusBar, Animated, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ScreenWrapper } from './ScreenWrapper';
 import { ErrorBoundary } from '../error/ErrorBoundary';
@@ -13,10 +13,16 @@ interface SafeScreenProps {
     children: (data: any, isRefreshing: boolean, refetch: () => void) => React.ReactNode;
     showScroll?: boolean;
     headerRight?: React.ReactNode;
+    showBackButton?: boolean;
 }
 
-export const SafeScreen: React.FC<SafeScreenProps> = ({ config, children, showScroll = true, headerRight }) => {
+import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+export const SafeScreen: React.FC<SafeScreenProps> = ({ config, children, showScroll = true, headerRight, showBackButton = false }) => {
     const fadeAnim = React.useRef(new Animated.Value(0)).current;
+    const router = useRouter();
+    const insets = useSafeAreaInsets();
 
     // Memoize fallback để tránh loop render do reference thay đổi
     const memoizedFallback = React.useMemo(() =>
@@ -77,26 +83,36 @@ export const SafeScreen: React.FC<SafeScreenProps> = ({ config, children, showSc
                 />
 
                 <View style={styles.header}>
-                    <Text style={styles.title}>{config.title}</Text>
+                    <View style={styles.headerLeft}>
+                        {showBackButton && (
+                            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                                <Text style={styles.backButtonText}>← Bấm để Quay lại</Text>
+                            </TouchableOpacity>
+                        )}
+                        <Text style={styles.title}>{config.title}</Text>
+                    </View>
                     {headerRight && <View style={styles.headerRight}>{headerRight}</View>}
                 </View>
 
-                {showScroll ? (
-                    <ScrollView
-                        showsVerticalScrollIndicator={false}
-                        refreshControl={
-                            <RefreshControl
-                                refreshing={isRefreshing}
-                                onRefresh={refetch}
-                                tintColor="#3b82f6"
-                            />
-                        }
-                    >
-                        {renderContent()}
-                    </ScrollView>
-                ) : (
-                    renderContent()
-                )}
+                <View style={{ flex: 1, paddingBottom: insets.bottom }}>
+                    {showScroll ? (
+                        <ScrollView
+                            showsVerticalScrollIndicator={false}
+                            contentContainerStyle={{ flexGrow: 1 }}
+                            refreshControl={
+                                <RefreshControl
+                                    refreshing={isRefreshing}
+                                    onRefresh={refetch}
+                                    tintColor="#3b82f6"
+                                />
+                            }
+                        >
+                            {renderContent()}
+                        </ScrollView>
+                    ) : (
+                        renderContent()
+                    )}
+                </View>
             </ScreenWrapper>
         </ErrorBoundary>
     );
@@ -110,6 +126,23 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingTop: 16,
         paddingBottom: 16,
+    },
+    headerLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+    backButton: {
+        marginRight: 12,
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        backgroundColor: '#f1f5f9',
+        borderRadius: 20,
+    },
+    backButtonText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#3b82f6',
     },
     headerRight: {
         flexDirection: 'row',

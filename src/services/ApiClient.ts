@@ -353,8 +353,9 @@ async function fetchSafe<TReq extends z.ZodTypeAny, TRes extends z.ZodTypeAny>(
         else axiosRes = await delegate.delete(finalPath);
     } catch (err: any) {
         if (API_LOG_CONFIG.errors) {
-            console.error(`[ApiClient] ❌ Lỗi gọi API [${method}] tới: ${finalPath}`);
-            console.error(`Chi tiết lỗi RAW:`, err.message, err.response?.data);
+            console.warn(`[ApiClient] ❌ Lỗi gọi API [${method}] tới: ${finalPath}`);
+            const errorMsg = err?.message || String(err);
+            console.warn(`Chi tiết lỗi RAW:`, errorMsg, err?.response?.data || '');
         }
 
         // [HARDENING] Phản hồi lỗi trực tiếp lên UI nếu là mảng Layout
@@ -365,7 +366,7 @@ async function fetchSafe<TReq extends z.ZodTypeAny, TRes extends z.ZodTypeAny>(
                     id: 'api-network-error',
                     data: {
                         error: `LỖI MẠNG ĐẾN: ${finalPath}`,
-                        details: `Network Info: ${err.message}`
+                        details: `Network Info: ${err?.message || String(err)}`
                     }
                 },
                 ...endpoint.fallbackRes
@@ -383,8 +384,8 @@ async function fetchSafe<TReq extends z.ZodTypeAny, TRes extends z.ZodTypeAny>(
     const parsedRes = endpoint.res.safeParse(axiosRes.data);
     if (!parsedRes.success) {
         console.group(`[ApiClient] ❌ SCHEMA MISMATCH for ${endpoint.path}`);
-        console.error('The backend returned data that does not match the app schema.');
-        console.error('Issues:', JSON.stringify(parsedRes.error.format(), null, 2));
+        console.warn('The backend returned data that does not match the app schema.');
+        console.warn('Issues:', JSON.stringify(parsedRes.error.format(), null, 2));
         console.groupEnd();
 
         // [HARDENING] Gửi log lỗi cấu trúc về Backend

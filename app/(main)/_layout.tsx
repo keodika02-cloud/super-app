@@ -2,6 +2,7 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { Text } from 'react-native';
 import { useNavigation, AppTab } from '../../src/hooks/useNavigation';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
     return (
@@ -11,6 +12,7 @@ function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
 
 export default function MainLayout() {
     const { tabs } = useNavigation();
+    const insets = useSafeAreaInsets();
 
     return (
         <Tabs
@@ -20,8 +22,8 @@ export default function MainLayout() {
                     backgroundColor: '#ffffff',
                     borderTopColor: '#e2e8f0',
                     borderTopWidth: 1,
-                    height: 70,
-                    paddingBottom: 10,
+                    height: 60 + insets.bottom,
+                    paddingBottom: insets.bottom > 0 ? insets.bottom : 10,
                 },
                 tabBarActiveTintColor: '#3b82f6',
                 tabBarInactiveTintColor: '#64748b',

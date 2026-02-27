@@ -28,7 +28,7 @@ export default function DynamicScreen() {
     // [HARDENING]: Tạo Config động trên Runtime.
     // Việc này cho phép hiển thị BẤT KỲ màn hình nào từ Server mà App không cần update.
     const dynamicConfig = useMemo<ScreenConfig>(() => {
-        const isUrl = slug.startsWith('http');
+        const isUrl = slug.startsWith('http') || slug.startsWith('/');
 
         return {
             id: `dynamic_${slug}`,
@@ -52,7 +52,7 @@ export default function DynamicScreen() {
     }, [slug, title]);
 
     return (
-        <SafeScreen config={dynamicConfig}>
+        <SafeScreen config={dynamicConfig} showBackButton={true}>
             {(blocks) => (
                 <View style={styles.container}>
                     <SduiEngine blocks={blocks} />

@@ -152,13 +152,18 @@ export const ActionRegistry = {
 
                     // [Bypass Expo Router Bug]: Tránh việc router hiểu nhầm Full URL thành 1 Deep Link và văng về trang chủ
                     let safeSlug = payload.slug;
-                    if (safeSlug.startsWith('http')) {
+                    if (safeSlug.startsWith('http') || safeSlug.startsWith('/')) {
                         const toHex = (str: string) => Array.from(str).map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join('');
                         safeSlug = `hex_${toHex(safeSlug)}`;
                     }
 
+                    // [Fullscreen Feature]: Nếu cấu hình yêu cầu Fullscreen, ném ra ngoài Tab Stack
+                    const targetPathname = payload.fullscreen
+                        ? '/fullscreen/[slug]'
+                        : '/(main)/screen/[slug]';
+
                     router.push({
-                        pathname: '/(main)/screen/[slug]',
+                        pathname: targetPathname,
                         params: { slug: safeSlug, title: payload.title || 'Tính năng' }
                     } as any);
                 } else {
