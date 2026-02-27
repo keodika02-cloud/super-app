@@ -16,14 +16,18 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     View, Text, TextInput, ScrollView,
     KeyboardAvoidingView, Platform,
-    Alert, TouchableOpacity,
+    Alert, TouchableOpacity, Image,
+    Animated, Easing
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Device from 'expo-device';
+import { Ionicons } from '@expo/vector-icons';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { useAuthStore } from '@stores/useAuthStore';
 import { HardwareService } from '@services/HardwareService';
@@ -61,9 +65,16 @@ export function LoginScreen() {
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [otp, setOtp] = useState('');
     const [rememberDevice, setRememberDevice] = useState(true);
+    const [focusedInput, setFocusedInput] = useState<'email' | 'password' | null>(null);
 
     // AbortController để cancel login request khi timeout hoặc user bấm Hủy
     const abortRef = useRef<AbortController | null>(null);
+
+    // Animations
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const slideAnim = useRef(new Animated.Value(50)).current;
+    const floatAnim1 = useRef(new Animated.Value(0)).current;
+    const floatAnim2 = useRef(new Animated.Value(0)).current;
 
     const { control, handleSubmit, formState: { errors } } = useForm<LoginForm>({
         resolver: zodResolver(loginSchema),
@@ -73,6 +84,26 @@ export function LoginScreen() {
     useEffect(() => {
         // Kiểm tra biometric khi mount
         HardwareService.hasBiometric().then(setBioAvail);
+
+        Animated.parallel([
+            Animated.timing(fadeAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
+            Animated.timing(slideAnim, { toValue: 0, duration: 1000, easing: Easing.out(Easing.back(1.5)), useNativeDriver: true })
+        ]).start();
+
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(floatAnim1, { toValue: -20, duration: 3000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+                Animated.timing(floatAnim1, { toValue: 0, duration: 3000, easing: Easing.inOut(Easing.ease), useNativeDriver: true })
+            ])
+        ).start();
+
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(floatAnim2, { toValue: -20, duration: 3500, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+                Animated.timing(floatAnim2, { toValue: 0, duration: 3500, easing: Easing.inOut(Easing.ease), useNativeDriver: true })
+            ])
+        ).start();
+
         // Cleanup: hủy request nếu đang loading khi component unmount
         return () => { abortRef.current?.abort(); };
     }, []);
@@ -100,7 +131,6 @@ export function LoginScreen() {
             setLoadingStage('Đang xác thực thông tin...');
             await login(data.email, data.password);
 
-            // Nếu cần 2FA, logic bên trong login store đã set require2FA = true
             // Nếu không cần 2FA, tiến hành tiếp
             if (!useAuthStore.getState().require2FA) {
                 setLoadingStage('Đang đồng bộ phiên...');
@@ -149,41 +179,41 @@ export function LoginScreen() {
 
     // ─── Xử lý 2FA ─────────────────────────────────────────────────────────────
     const onVerifyOTP = async () => {
-        if (otp.length < 6) {
-            setErrorMsg('Vui lòng nhập đủ 6 số xác thực.');
-            return;
-        }
-        setLoading(true);
-        setErrorMsg(null);
+        if (otp.length < 6) { return setErrorMsg('Vui lòng nhập đủ 6 số xác thực.'); }
+        setLoading(true); setErrorMsg(null);
         try {
             setLoadingStage('Đang xác thực OTP...');
             await verify2FA(otp, rememberDevice);
-            // @ts-ignore: Mismatched router types in Expo 50+
+            // @ts-ignore
             router.replace('/');
         } catch (err: any) {
             setErrorMsg(err.message || 'Mã xác thực không hợp lệ.');
         } finally {
-            setLoading(false);
-            setLoadingStage(null);
+            setLoading(false); setLoadingStage(null);
         }
     };
 
-    // ─── Social Login (Chỉ Google như yêu cầu) ──────────────────────────────────
-    const handleSocialLogin = async (provider: 'google' | 'facebook') => {
-        setLoading(true);
-        setErrorMsg(null);
+    // ─── Social Login (Google & Apple) ──────────────────────────────────
+    const handleSocialLogin = async (provider: 'google' | 'apple') => {
+        setLoading(true); setErrorMsg(null);
         try {
             setLoadingStage(`Đang kết nối ${provider}...`);
-            // MOCK: Khi có backend support, thay bằng Expo AuthSession
-            Alert.alert(
-                'Tính năng Google Login',
-                'Hệ thống đang chờ cấu hình Google Client ID cho ứng dụng này.'
-            );
+            if (provider === 'apple') {
+                const credential = await AppleAuthentication.signInAsync({
+                    requestedScopes: [AppleAuthentication.AppleAuthenticationScope.FULL_NAME, AppleAuthentication.AppleAuthenticationScope.EMAIL],
+                });
+                if (credential.identityToken) {
+                    await loginSocial('apple' as any, credential.identityToken);
+                    router.replace('/');
+                }
+            } else {
+                Alert.alert('Tính năng Google Login', 'Hệ thống đang chờ cấu hình Google Client ID.');
+            }
         } catch (err: any) {
-            setErrorMsg(`Lỗi kết nối ${provider}.`);
+            if (err?.code === 'ERR_CANCELED') setErrorMsg('Đã hủy đăng nhập social.');
+            else setErrorMsg(`Lỗi kết nối ${provider}: ${err.message}`);
         } finally {
-            setLoading(false);
-            setLoadingStage(null);
+            setLoading(false); setLoadingStage(null);
         }
     };
 
@@ -192,10 +222,7 @@ export function LoginScreen() {
         const result = await HardwareService.authenticateBio('Đăng nhập nhanh vào QVC');
         if (result.authenticated) {
             const savedEmail = await StorageService.getLastEmail();
-            if (!savedEmail) {
-                setErrorMsg('Vui lòng đăng nhập bằng mật khẩu lần đầu.');
-                return;
-            }
+            if (!savedEmail) return setErrorMsg('Vui lòng đăng nhập bằng mật khẩu lần đầu.');
             Alert.alert('Sinh trắc học', 'Phiên làm việc cũ đã hết hạn. Vui lòng nhập mật khẩu để tiếp tục.');
         }
     };
@@ -206,26 +233,15 @@ export function LoginScreen() {
             <View style={{ flex: 1, backgroundColor: '#0f172a', justifyContent: 'center', padding: 24 }}>
                 <GlassCard>
                     <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800', marginBottom: 8 }}>Xác thực bảo mật</Text>
-                    <Text style={{ color: '#94a3b8', fontSize: 14, marginBottom: 24 }}>
-                        Một mã OTP đã được gửi về Email của bạn.
-                    </Text>
-
+                    <Text style={{ color: '#94a3b8', fontSize: 14, marginBottom: 24 }}>Một mã OTP đã được gửi về Email của bạn.</Text>
                     <TextInput
                         style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', color: '#fff', padding: 18, fontSize: 24, textAlign: 'center', letterSpacing: 10, marginBottom: 20 }}
-                        placeholder="000000" placeholderTextColor="#334155"
-                        keyboardType="number-pad" maxLength={6}
-                        value={otp} onChangeText={setOtp}
+                        placeholder="000000" placeholderTextColor="#334155" keyboardType="number-pad" maxLength={6} value={otp} onChangeText={setOtp}
                     />
-
                     <AppButton label={loadingStage || "Xác nhận OTP"} onPress={onVerifyOTP} loading={loading} fullWidth />
-
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 }}>
-                        <TouchableOpacity onPress={() => { resend2FA(); Alert.alert('Thông báo', 'Đã yêu cầu gửi lại mã.'); }}>
-                            <Text style={{ color: '#60a5fa', fontSize: 14, fontWeight: '600' }}>Gửi lại mã</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={cancel2FA}>
-                            <Text style={{ color: '#94a3b8', fontSize: 14 }}>Hủy</Text>
-                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => { resend2FA(); Alert.alert('Thông báo', 'Đã yêu cầu gửi lại mã.'); }}><Text style={{ color: '#60a5fa', fontSize: 14, fontWeight: '600' }}>Gửi lại mã</Text></TouchableOpacity>
+                        <TouchableOpacity onPress={cancel2FA}><Text style={{ color: '#94a3b8', fontSize: 14 }}>Hủy</Text></TouchableOpacity>
                     </View>
                 </GlassCard>
             </View>
@@ -234,97 +250,158 @@ export function LoginScreen() {
 
     // ─── UI Main Login ──────────────────────────────────────────────
     return (
-        <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
-            {/* Blobs trang trí */}
-            <View style={{ position: 'absolute', width: 300, height: 300, borderRadius: 150, backgroundColor: '#1d4ed8', opacity: 0.2, top: -50, left: -50 }} />
-            <View style={{ position: 'absolute', width: 250, height: 250, borderRadius: 125, backgroundColor: '#7c3aed', opacity: 0.15, bottom: 50, right: -50 }} />
+        <LinearGradient colors={['#eef2ff', '#ffffff', '#f5f3ff']} style={{ flex: 1 }}>
+
+            {/* Background floating blobs */}
+            <Animated.View style={{ position: 'absolute', top: -60, right: -60, width: 200, height: 200, borderRadius: 100, backgroundColor: '#818cf8', opacity: 0.15, transform: [{ translateY: floatAnim1 }] }} />
+            <Animated.View style={{ position: 'absolute', bottom: -60, left: -60, width: 200, height: 200, borderRadius: 100, backgroundColor: '#60a5fa', opacity: 0.15, transform: [{ translateY: floatAnim2 }] }} />
 
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-                <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }} keyboardShouldPersistTaps="handled">
-                    <View style={{ alignItems: 'center', marginBottom: 40 }}>
-                        <View style={{ width: 80, height: 80, borderRadius: 24, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center', shadowColor: '#2563eb', shadowOpacity: 0.5, shadowRadius: 20, elevation: 10 }}>
-                            <Text style={{ fontSize: 40 }}>⚡</Text>
-                        </View>
-                        <Text style={{ color: '#fff', fontSize: 32, fontWeight: '900', marginTop: 16 }}>QUỐC VIỆT</Text>
-                        <Text style={{ color: '#64748b', fontSize: 14, marginTop: 4 }}>App nội bộ cho nhân viên</Text>
-                    </View>
+                <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 20, paddingVertical: 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
-                    <GlassCard>
-                        {errorMsg && (
-                            <TouchableOpacity onPress={() => setErrorMsg(null)} style={{ backgroundColor: 'rgba(239,68,68,0.1)', borderRadius: 12, padding: 14, marginBottom: 20, borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)' }}>
-                                <Text style={{ color: '#f87171', fontSize: 13 }}>⚠️ {errorMsg}</Text>
-                            </TouchableOpacity>
-                        )}
+                    <Animated.View style={{
+                        backgroundColor: '#fff', borderRadius: 32, padding: 24,
+                        shadowColor: '#4f46e5', shadowOpacity: 0.1, shadowRadius: 30, shadowOffset: { width: 0, height: 10 }, elevation: 10,
+                        opacity: fadeAnim, transform: [{ translateY: slideAnim }]
+                    }}>
 
-                        <Text style={{ color: '#94a3b8', fontSize: 13, marginBottom: 8, marginLeft: 4 }}>Tài khoản Email</Text>
-                        <Controller control={control} name="email" render={({ field: { onChange, value } }) => (
-                            <TextInput
-                                style={{ backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', color: '#fff', padding: 16, marginBottom: 16, fontSize: 16 }}
-                                placeholder="name@company.com" placeholderTextColor="#475569" value={value} onChangeText={onChange} autoCapitalize="none" editable={!loading}
-                            />
-                        )} />
-
-                        <Text style={{ color: '#94a3b8', fontSize: 13, marginBottom: 8, marginLeft: 4 }}>Mật khẩu</Text>
-                        <View style={{ marginBottom: 24 }}>
-                            <Controller control={control} name="password" render={({ field: { onChange, value } }) => (
-                                <TextInput
-                                    style={{ backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', color: '#fff', padding: 16, fontSize: 16, paddingRight: 50 }}
-                                    placeholder="••••••••" placeholderTextColor="#475569" secureTextEntry={!showPass} value={value} onChangeText={onChange} editable={!loading}
+                        {/* Header Section */}
+                        <View style={{ alignItems: 'center', marginBottom: 20 }}>
+                            <View style={{ width: 64, height: 64, backgroundColor: '#fff', borderRadius: 20, alignItems: 'center', justifyContent: 'center', shadowColor: '#4f46e5', shadowOpacity: 0.15, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, marginBottom: 12, transform: [{ rotate: '3deg' }], borderWidth: 1, borderColor: '#f1f5f9' }}>
+                                <Image
+                                    source={require('../../assets/logo.png')}
+                                    style={{ width: 48, height: 48, transform: [{ rotate: '-3deg' }] }}
+                                    resizeMode="contain"
                                 />
-                            )} />
-                            <TouchableOpacity onPress={() => setShowPass(!showPass)} style={{ position: 'absolute', right: 16, top: 16 }}>
-                                <Text style={{ fontSize: 18 }}>{showPass ? '🙊' : '👁️'}</Text>
+                            </View>
+                            <Text style={{ fontSize: 24, fontWeight: '800', color: '#0f172a', marginBottom: 4 }}>Chào mừng bạn!</Text>
+                            <Text style={{ fontSize: 12, color: '#64748b' }}>Vui lòng đăng nhập để tiếp tục</Text>
+                        </View>
+
+                        {errorMsg && (
+                            <TouchableOpacity onPress={() => setErrorMsg(null)} style={{ backgroundColor: '#fee2e2', borderRadius: 12, padding: 12, marginBottom: 16 }}>
+                                <Text style={{ color: '#ef4444', textAlign: 'center', fontWeight: '500', fontSize: 13 }}>{errorMsg}</Text>
+                            </TouchableOpacity>
+                        )}
+
+                        <View style={{ gap: 12 }}>
+                            <View>
+                                <Text style={{ fontSize: 12, fontWeight: '600', color: focusedInput === 'email' ? '#4f46e5' : '#475569', marginLeft: 4, marginBottom: 4 }}>Email</Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: focusedInput === 'email' ? '#fff' : '#f8fafc', borderWidth: 1, borderColor: focusedInput === 'email' ? '#c7d2fe' : 'transparent', borderRadius: 12, height: 48, paddingHorizontal: 12 }}>
+                                    <Ionicons name="mail" size={18} color={focusedInput === 'email' ? '#4f46e5' : '#94a3b8'} style={{ marginRight: 10 }} />
+                                    <Controller control={control} name="email" render={({ field: { onChange, value } }) => (
+                                        <TextInput
+                                            style={{ flex: 1, color: '#0f172a', fontSize: 14 }}
+                                            placeholder="nhapemail@domain.com"
+                                            placeholderTextColor="#94a3b8"
+                                            value={value} onChangeText={onChange} autoCapitalize="none" editable={!loading}
+                                            onFocus={() => setFocusedInput('email')} onBlur={() => setFocusedInput(null)}
+                                        />
+                                    )} />
+                                </View>
+                            </View>
+
+                            <View>
+                                <Text style={{ fontSize: 12, fontWeight: '600', color: focusedInput === 'password' ? '#4f46e5' : '#475569', marginLeft: 4, marginBottom: 4 }}>Mật khẩu</Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: focusedInput === 'password' ? '#fff' : '#f8fafc', borderWidth: 1, borderColor: focusedInput === 'password' ? '#c7d2fe' : 'transparent', borderRadius: 12, height: 48, paddingHorizontal: 12 }}>
+                                    <Ionicons name="lock-closed" size={18} color={focusedInput === 'password' ? '#4f46e5' : '#94a3b8'} style={{ marginRight: 10 }} />
+                                    <Controller control={control} name="password" render={({ field: { onChange, value } }) => (
+                                        <TextInput
+                                            style={{ flex: 1, color: '#0f172a', fontSize: 14 }}
+                                            placeholder="••••••••" placeholderTextColor="#94a3b8"
+                                            value={value} onChangeText={onChange} secureTextEntry={!showPass} editable={!loading}
+                                            onFocus={() => setFocusedInput('password')} onBlur={() => setFocusedInput(null)}
+                                        />
+                                    )} />
+                                    <TouchableOpacity onPress={() => setShowPass(!showPass)}>
+                                        <Ionicons name={showPass ? "eye-off" : "eye"} size={18} color="#94a3b8" />
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+
+                            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 2 }}>
+                                <TouchableOpacity>
+                                    <Text style={{ color: '#4f46e5', fontWeight: '600', fontSize: 12 }}>Quên mật khẩu?</Text>
+                                </TouchableOpacity>
+                            </View>
+
+                            <TouchableOpacity
+                                onPress={handleSubmit(onSubmit)}
+                                disabled={loading}
+                                style={{ backgroundColor: '#0f172a', height: 48, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 4, shadowColor: '#0f172a', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 5, opacity: loading ? 0.7 : 1 }}
+                            >
+                                {loading && loadingStage ? (
+                                    <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>{loadingStage}</Text>
+                                ) : (
+                                    <>
+                                        <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600', marginRight: 6 }}>Đăng nhập</Text>
+                                        <Ionicons name="arrow-forward" size={18} color="#fff" />
+                                    </>
+                                )}
                             </TouchableOpacity>
                         </View>
 
-                        <AppButton label={loadingStage || "Đăng nhập hệ thống"} onPress={() => !loading && handleSubmit(onSubmit)()} loading={loading} fullWidth />
-
-                        {Env.EXPO_PUBLIC_ENABLE_GOOGLE_AUTH && (
-                            <>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 24 }}>
-                                    <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.08)' }} />
-                                    <Text style={{ color: '#475569', marginHorizontal: 16, fontSize: 12, fontWeight: '700' }}>HOẶC</Text>
-                                    <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.08)' }} />
-                                </View>
-
-                                {/* Chỉ hỗ trợ Google như yêu cầu */}
-                                <TouchableOpacity
-                                    onPress={() => handleSocialLogin('google')}
-                                    style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.1, elevation: 2 }}
-                                    activeOpacity={0.9}
-                                    disabled={loading}
-                                >
-                                    <Text style={{ fontSize: 20, marginRight: 12 }}>G</Text>
-                                    <Text style={{ fontWeight: '700', color: '#1e293b', fontSize: 15 }}>Tiếp tục với Google</Text>
-                                </TouchableOpacity>
-                            </>
-                        )}
-
+                        {/* Floating Biometric Button */}
                         {bioAvail && Device.isDevice && !loading && (
-                            <TouchableOpacity onPress={onBiometric} style={{ alignItems: 'center', marginTop: 28 }}>
-                                <Text style={{ color: '#60a5fa', fontSize: 14, fontWeight: '500' }}>🔐 Đăng nhập bằng Vân tay / Khuôn mặt</Text>
-                            </TouchableOpacity>
+                            <View style={{ alignItems: 'center', marginTop: 20 }}>
+                                <TouchableOpacity
+                                    onPress={onBiometric}
+                                    style={{ width: 48, height: 48, backgroundColor: '#fff', borderWidth: 1, borderColor: '#f1f5f9', borderRadius: 24, alignItems: 'center', justifyContent: 'center', shadowColor: '#4f46e5', shadowOpacity: 0.15, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 }}
+                                >
+                                    <Ionicons name="finger-print" size={24} color="#4f46e5" />
+                                </TouchableOpacity>
+                                <Text style={{ color: '#64748b', fontSize: 11, fontWeight: '500', marginTop: 8 }}>Vân tay / FaceID</Text>
+                            </View>
                         )}
 
-                        <TouchableOpacity
-                            onPress={() => WebBrowser.openBrowserAsync(PRIVACY_URL)}
-                            style={{ alignItems: 'center', marginTop: 32 }}
-                        >
-                            <Text style={{ color: '#475569', fontSize: 11 }}>Chính sách bảo mật & Điều khoản sử dụng</Text>
-                        </TouchableOpacity>
-                    </GlassCard>
+                        {/* Divider */}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16, marginBottom: 12 }}>
+                            <View style={{ flex: 1, height: 1, backgroundColor: '#e2e8f0' }} />
+                            <Text style={{ color: '#94a3b8', marginHorizontal: 12, fontSize: 12, fontWeight: '500' }}>Hoặc đăng nhập với</Text>
+                            <View style={{ flex: 1, height: 1, backgroundColor: '#e2e8f0' }} />
+                        </View>
+
+                        {/* Social Buttons Grid (3 columns) */}
+                        <View style={{ flexDirection: 'row', gap: 12, justifyContent: 'center' }}>
+                            <TouchableOpacity
+                                onPress={() => handleSocialLogin('google')}
+                                style={{ flex: 1, height: 40, borderRadius: 12, backgroundColor: '#fff', borderWidth: 1, borderColor: '#e2e8f0', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.05, elevation: 1 }}
+                            >
+                                <Ionicons name="logo-google" size={20} color="#ea4335" />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                onPress={() => Alert.alert('Facebook', 'Chức năng đang phát triển')}
+                                style={{ flex: 1, height: 40, borderRadius: 12, backgroundColor: '#fff', borderWidth: 1, borderColor: '#e2e8f0', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.05, elevation: 1 }}
+                            >
+                                <Ionicons name="logo-facebook" size={20} color="#1877F2" />
+                            </TouchableOpacity>
+
+                            {Platform.OS === 'ios' && (
+                                <TouchableOpacity
+                                    onPress={() => handleSocialLogin('apple')}
+                                    style={{ flex: 1, height: 40, borderRadius: 12, backgroundColor: '#fff', borderWidth: 1, borderColor: '#e2e8f0', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.05, elevation: 1 }}
+                                >
+                                    <Ionicons name="logo-apple" size={22} color="#000" />
+                                </TouchableOpacity>
+                            )}
+                        </View>
+
+                        <View style={{ alignItems: 'center', marginTop: 20 }}>
+                            <Text style={{ color: '#64748b', fontSize: 13 }}>
+                                Chưa có tài khoản? <Text style={{ color: '#4f46e5', fontWeight: '700' }}>Đăng ký ngay</Text>
+                            </Text>
+                        </View>
+
+                    </Animated.View>
                 </ScrollView>
             </KeyboardAvoidingView>
 
-            {/* Nút hủy nổi khi đang chờ phản hồi mạng */}
             {loading && loadingStage && (
-                <TouchableOpacity
-                    onPress={handleCancel}
-                    style={{ position: 'absolute', bottom: 50, alignSelf: 'center', backgroundColor: 'rgba(255,255,255,0.1)', paddingVertical: 8, paddingHorizontal: 20, borderRadius: 20 }}
-                >
-                    <Text style={{ color: '#94a3b8', fontSize: 13 }}>Hủy yêu cầu</Text>
+                <TouchableOpacity onPress={handleCancel} style={{ position: 'absolute', bottom: 40, alignSelf: 'center', backgroundColor: '#e2e8f0', paddingVertical: 10, paddingHorizontal: 24, borderRadius: 25 }}>
+                    <Text style={{ color: '#475569', fontSize: 13, fontWeight: '700' }}>Hủy xác thực</Text>
                 </TouchableOpacity>
             )}
-        </View>
+        </LinearGradient>
     );
 }

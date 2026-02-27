@@ -1,13 +1,7 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { Text } from 'react-native';
-import { useNavigation, AppTab } from '../../src/hooks/useNavigation';
-
-function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
-    return (
-        <Text style={{ fontSize: focused ? 26 : 22, opacity: focused ? 1 : 0.6 }}>{emoji}</Text>
-    );
-}
+import { Home, Briefcase, MessageCircle, Menu, User } from 'lucide-react-native';
+import { useNavigation, AppTab } from '@hooks/useNavigation';
 
 export default function MainLayout() {
     const { tabs } = useNavigation();
@@ -18,34 +12,65 @@ export default function MainLayout() {
                 headerShown: false,
                 tabBarStyle: {
                     backgroundColor: '#ffffff',
-                    borderTopColor: '#e2e8f0',
+                    borderTopColor: '#f0f2f5',
                     borderTopWidth: 1,
-                    height: 70,
-                    paddingBottom: 10,
+                    height: 85,
+                    paddingTop: 8,
+                    paddingBottom: 25,
+                    elevation: 10,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: -2 },
+                    shadowOpacity: 0.05,
                 },
-                tabBarActiveTintColor: '#3b82f6',
-                tabBarInactiveTintColor: '#64748b',
-                tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+                tabBarActiveTintColor: '#E4623B',
+                tabBarInactiveTintColor: '#65676B',
+                tabBarLabelStyle: { fontSize: 10, fontWeight: '700', marginTop: 4 },
             }}
         >
-            {tabs.map((tab: AppTab) => (
-                <Tabs.Screen
-                    key={tab.name}
-                    name={tab.name}
-                    options={{
-                        title: tab.label,
-                        href: tab.is_hidden ? null : undefined,
-                        tabBarIcon: ({ focused }) => <TabIcon emoji={tab.icon} focused={focused} />
-                    }}
-                />
-            ))}
+            <Tabs.Screen
+                name="index"
+                options={{
+                    title: 'Trang chủ',
+                    tabBarIcon: ({ color, focused }) => (
+                        <Home size={24} color={color} fill={focused ? color : 'transparent'} />
+                    )
+                }}
+            />
+            <Tabs.Screen
+                name="crm"
+                options={{
+                    title: 'CRM',
+                    tabBarIcon: ({ color }) => <Briefcase size={24} color={color} />
+                }}
+            />
+            <Tabs.Screen
+                name="chat"
+                options={{
+                    title: 'Hội thoại',
+                    tabBarIcon: ({ color }) => <MessageCircle size={24} color={color} />,
+                }}
+            />
+            <Tabs.Screen
+                name="more"
+                options={{
+                    title: 'Khám phá',
+                    tabBarIcon: ({ color }) => <Menu size={24} color={color} />
+                }}
+            />
+            <Tabs.Screen
+                name="profile"
+                options={{
+                    title: 'Cá nhân',
+                    tabBarIcon: ({ color }) => <User size={24} color={color} />
+                }}
+            />
 
             {/* Ẩn các màn hình hệ thống cố định */}
             <Tabs.Screen name="checkin" options={{ href: null }} />
             <Tabs.Screen name="reports" options={{ href: null }} />
             <Tabs.Screen name="notifications" options={{ href: null }} />
             <Tabs.Screen name="tasks" options={{ href: null }} />
-            {/* Màn hình động SDUI (Cho phép mở tính năng mới mà không cần Update App) */}
+            {/* Màn hình động SDUI */}
             <Tabs.Screen name="screen/[slug]" options={{ href: null }} />
         </Tabs>
     );

@@ -1,37 +1,46 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
-import { useAuthStore } from '../../stores/useAuthStore';
-import { CreatePostModal } from '../modals/CreatePostModal';
+import { Image as ImageIcon, MapPin, Smile } from 'lucide-react-native';
+import { useAuthStore } from '@stores/useAuthStore';
 import { useRouter } from 'expo-router';
+import { CreatePostModal } from '../modals/CreatePostModal';
 
 export const PostComposerBlock = ({ data }: { data: any }) => {
     const { user } = useAuthStore();
-    const [isModalVisible, setModalVisible] = React.useState(false);
     const router = useRouter();
+    const [isModalVisible, setModalVisible] = React.useState(false);
+
+    // Đảm bảo avatar là string hợp lệ
+    const avatarUri = typeof user?.avatar === 'string' && user.avatar.length > 0 ? user.avatar : null;
+    const initial = user?.name ? user.name.charAt(0).toUpperCase() : 'V';
 
     return (
-        <View style={styles.composerContainer}>
-            <View style={styles.composerHeader}>
-                <View style={styles.composerAvatar}>
-                    {user?.avatar ? (
-                        <Image source={{ uri: user.avatar }} style={styles.avatarImg} />
+        <View style={styles.card}>
+            <View style={styles.inputRow}>
+                <View style={styles.miniAvatar}>
+                    {avatarUri ? (
+                        <Image source={{ uri: avatarUri }} style={styles.fullImage} />
                     ) : (
-                        <View style={styles.avatarPlaceholder}><Text style={{ fontSize: 20 }}>👤</Text></View>
+                        <Text style={styles.miniAvatarText}>{initial}</Text>
                     )}
                 </View>
-                <TouchableOpacity style={styles.composerInput} onPress={() => setModalVisible(true)}>
-                    <Text style={styles.composerPlaceholder}>{String(data?.placeholder || 'Bạn đang nghĩ gì thế?')}</Text>
+                <TouchableOpacity style={styles.textInputSim} activeOpacity={0.8} onPress={() => setModalVisible(true)}>
+                    <Text style={styles.placeholderText}>{String(data?.placeholder || 'Hôm nay công việc của bạn thế nào?')}</Text>
                 </TouchableOpacity>
             </View>
-            <View style={styles.composerActions}>
-                <TouchableOpacity style={styles.composerActionBtn} onPress={() => setModalVisible(true)}>
-                    <Text style={styles.actionTxt}>🖼️ Hình ảnh</Text>
+
+            <View style={styles.actionRow}>
+                <TouchableOpacity style={styles.actionBtn} onPress={() => setModalVisible(true)}>
+                    <ImageIcon size={20} color="#10b981" />
+                    <Text style={styles.actionBtnLabel}>Hình ảnh</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.composerActionBtn} onPress={() => router.push('/(main)/checkin')}>
-                    <Text style={styles.actionTxt}>📍 Check-in</Text>
+                <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/(main)/checkin')}>
+                    <MapPin size={20} color="#f43f5e" />
+                    <Text style={styles.actionBtnLabel}>Check-in</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.composerActionBtn} onPress={() => setModalVisible(true)}>
-                    <Text style={styles.actionTxt}>😊 Cảm xúc</Text>
+                <TouchableOpacity style={styles.actionBtn} onPress={() => setModalVisible(true)}>
+                    <Smile size={20} color="#f59e0b" />
+                    <Text style={styles.actionBtnLabel}>Cảm xúc</Text>
                 </TouchableOpacity>
             </View>
 
@@ -41,23 +50,14 @@ export const PostComposerBlock = ({ data }: { data: any }) => {
 };
 
 const styles = StyleSheet.create({
-    composerContainer: {
-        backgroundColor: '#fff',
-        padding: 16,
-        borderRadius: 20,
-        shadowColor: '#64748b',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        elevation: 2,
-    },
-    composerHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 12 },
-    composerAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-    avatarPlaceholder: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
-    avatarImg: { width: '100%', height: '100%' },
-    composerInput: { flex: 1, backgroundColor: '#f8fafc', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 24, borderWidth: 1, borderColor: '#e2e8f0' },
-    composerPlaceholder: { color: '#64748b', fontSize: 15 },
-    composerActions: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 12, justifyContent: 'space-between' },
-    composerActionBtn: { flex: 1, alignItems: 'center', paddingVertical: 4 },
-    actionTxt: { fontSize: 14, color: '#475569', fontWeight: '600' }
+    card: { backgroundColor: '#fff', borderRadius: 20, padding: 12, shadowColor: '#64748b', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 1 },
+    inputRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+    miniAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#8B5CF6', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+    miniAvatarText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+    fullImage: { width: '100%', height: '100%' },
+    textInputSim: { flex: 1, backgroundColor: '#f1f5f9', borderRadius: 24, paddingHorizontal: 16, paddingVertical: 10 },
+    placeholderText: { color: '#64748b', fontSize: 14 },
+    actionRow: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#f8fafc', paddingTop: 12, justifyContent: 'space-around', paddingHorizontal: 10 },
+    actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    actionBtnLabel: { fontSize: 13, fontWeight: '600', color: '#64748b' },
 });

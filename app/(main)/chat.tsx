@@ -1,14 +1,15 @@
 import React, { useEffect, useCallback } from 'react';
 import { View, Text, FlatList, RefreshControl, StyleSheet, Image, TouchableOpacity } from 'react-native';
-import { ScreenWrapper } from '../../src/components/layout/ScreenWrapper';
-import { socketService } from '../../src/services/SocketService';
-import { useAuthStore } from '../../src/stores/useAuthStore';
-import { useChatStore } from '../../src/stores/useChatStore';
-import { router } from 'expo-router';
+import { ScreenWrapper } from '@components/layout/ScreenWrapper';
+import { socketService } from '@services/SocketService';
+import { useAuthStore } from '@stores/useAuthStore';
+import { useChatStore } from '@stores/useChatStore';
+import { useRouter } from 'expo-router';
 
 export default function ChatScreen() {
     const { user } = useAuthStore();
     const { conversations, isLoadingConvos, fetchConversations, updateConversationLatest } = useChatStore();
+    const router = useRouter();
 
     useEffect(() => {
         socketService.init();

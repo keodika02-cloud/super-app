@@ -1,11 +1,16 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Modal, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, ScrollView } from 'react-native';
-import { useAuthStore } from '../../../src/stores/useAuthStore';
-import { ApiClient } from '../../../src/services/ApiClient';
-import { API_ENDPOINTS } from '../../../src/config/api-endpoints';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Modal, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView, Alert } from 'react-native';
+import { useAuthStore } from '@stores/useAuthStore';
+import { ApiClient } from '@services/ApiClient';
+import { API_ENDPOINTS } from '@config/api-endpoints';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { LinearGradient } from 'expo-linear-gradient';
+import { X, Image as ImageIcon, MapPin, Smile, Globe, Camera } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const DRAFT_KEY = '@news_feed_draft';
+
 interface CreatePostModalProps {
     visible: boolean;
     onClose: () => void;
@@ -14,8 +19,113 @@ interface CreatePostModalProps {
 export const CreatePostModal: React.FC<CreatePostModalProps> = ({ visible, onClose }) => {
     const { user } = useAuthStore();
     const [content, setContent] = useState('');
+    const [images, setImages] = useState<string[]>([]);
+    const [isLocating, setIsLocating] = useState(false);
     const queryClient = useQueryClient();
 
+    // 1. TẢI HOẶC TẠO MỚI BẢN NHÁP
+    useEffect(() => {
+        if (visible) {
+            AsyncStorage.getItem(DRAFT_KEY).then(draft => {
+                if (draft) {
+                    const parsed = JSON.parse(draft);
+                    setContent(parsed.content || '');
+                    setImages(parsed.images || []);
+                }
+            }).catch(console.error);
+        }
+    }, [visible]);
+
+    // LƯU NHÁP TỰ ĐỘNG
+    useEffect(() => {
+        if (visible) {
+            AsyncStorage.setItem(DRAFT_KEY, JSON.stringify({ content, images })).catch(console.error);
+        }
+    }, [content, images, visible]);
+
+    // 2. CHỌN ẢNH TỪ THƯ VIỆN
+    const handlePickImage = async () => {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+            Alert.alert('Cấp quyền', 'App cần quyền truy cập thư viện ảnh để đính kèm nhé!');
+            return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsMultipleSelection: true,
+            quality: 0.8,
+        });
+
+        if (!result.canceled && result.assets) {
+            const newUris = result.assets.map(a => a.uri);
+            setImages(prev => [...prev, ...newUris]);
+        }
+    };
+
+    // 3. CHỤP ẢNH TỪ CAMERA
+    const handleCamera = async () => {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+            Alert.alert('Cấp quyền', 'App cần quyền truy cập Camera nhé!');
+            return;
+        }
+
+        const result = await ImagePicker.launchCameraAsync({
+            quality: 0.8,
+        });
+
+        if (!result.canceled && result.assets) {
+            setImages(prev => [...prev, result.assets[0].uri]);
+        }
+    };
+
+    const handleRemoveImage = (index: number) => {
+        setImages(prev => prev.filter((_, i) => i !== index));
+    };
+
+    // 4. LẤY TỌA ĐỘ CHECK-IN
+    const handleGetLocation = async () => {
+        setIsLocating(true);
+        try {
+            const { status } = await Location.requestForegroundPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Thiếu quyền', 'Vui lòng cấp quyền định vị trong Cài đặt để sử dụng Check-in');
+                setIsLocating(false);
+                return;
+            }
+
+            let location;
+            try {
+                location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+            } catch (err) {
+                location = await Location.getLastKnownPositionAsync();
+                if (!location) throw err;
+            }
+
+            const [address] = await Location.reverseGeocodeAsync({
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude
+            });
+
+            if (address) {
+                const locStr = [address.name, address.street, address.subregion, address.city].filter(Boolean).join(', ');
+                setContent(prev => {
+                    const append = `\n📍 Check-in tại: ${locStr}`;
+                    if (prev.includes('📍 Check-in tại:')) return prev;
+                    return prev + append;
+                });
+            } else {
+                Alert.alert('Lỗi', 'Không diễn dịch được toạ độ hiện tại');
+            }
+        } catch (error: any) {
+            Alert.alert('Chưa bật GPS', 'Vui lòng bật tính năng Vị trí (GPS) trên thiết bị của bạn hoặc cấp quyền trong Cài đặt.');
+        } finally {
+            setIsLocating(false);
+        }
+    };
+
+    // 5. MUTATION VỚI FORM DATA (CẬP NHẬT TỪ UPSTREAM)
     const createPostMutation = useMutation({
         mutationFn: async (payload: { content: string, uris: string[] }) => {
             if (payload.uris.length > 0) {
@@ -48,6 +158,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ visible, onClo
             queryClient.invalidateQueries({ queryKey: ['news-feed'] });
             setContent('');
             setImages([]);
+            AsyncStorage.removeItem(DRAFT_KEY);
             onClose();
             Alert.alert('Thành công', 'Đăng bài thành công!');
         },
@@ -57,186 +168,164 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ visible, onClo
         }
     });
 
-    const [images, setImages] = useState<string[]>([]);
-
-    const handlePickImage = async () => {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-            Alert.alert('Quyền truy cập', 'Vui lòng cấp quyền truy cập thư viện ảnh.');
-            return;
-        }
-
-        const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
-            allowsMultipleSelection: true,
-            quality: 0.7,
-        });
-
-        if (!result.canceled) {
-            const newUris = result.assets.map(a => a.uri);
-            setImages(prev => [...prev, ...newUris].slice(0, 5)); // Giới hạn 5 ảnh
-        }
-    };
-
-    const removeImage = (index: number) => {
-        setImages(prev => prev.filter((_, i) => i !== index));
-    };
-
     const handlePost = () => {
         if (!content.trim() && images.length === 0) return;
         createPostMutation.mutate({ content, uris: images });
     };
 
+    const avatarUri = typeof user?.avatar === 'string' && user.avatar.length > 0 ? user.avatar : null;
+    const initial = user?.name ? user.name.charAt(0).toUpperCase() : 'V';
+    const isPostDisabled = !content.trim() && images.length === 0;
+
     return (
         <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
             <View style={styles.container}>
-                <LinearGradient colors={['#e0f2fe', '#f8fafc']} style={StyleSheet.absoluteFillObject} />
-
-                {/* Header */}
+                {/* Header chuẩn Facebook */}
                 <View style={styles.header}>
                     <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-                        <Text style={styles.closeTxt}>✕ Hủy</Text>
+                        <X size={24} color="#050505" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Tạo bài viết</Text>
                     <TouchableOpacity
-                        style={[styles.postBtn, (!content.trim() && images.length === 0) && styles.postBtnDisabled]}
-                        disabled={(!content.trim() && images.length === 0) || createPostMutation.isPending}
+                        style={[styles.postBtn, isPostDisabled && styles.postBtnDisabled]}
+                        disabled={isPostDisabled || createPostMutation.isPending}
                         onPress={handlePost}
                     >
                         {createPostMutation.isPending ? (
-                            <ActivityIndicator size="small" color="#fff" />
+                            <ActivityIndicator size="small" color={isPostDisabled ? '#bcc0c4' : '#fff'} />
                         ) : (
-                            <Text style={styles.postTxt}>Đăng</Text>
+                            <Text style={[styles.postTxt, isPostDisabled && styles.postTxtDisabled]}>Đăng</Text>
                         )}
                     </TouchableOpacity>
                 </View>
 
-                {/* Body - Flex để tự co giãn */}
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    style={{ flex: 1 }}
-                    keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-                >
-                    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
+                {/* Body */}
+                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.body}>
+                    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
                         <View style={styles.userInfo}>
                             <View style={styles.avatar}>
-                                {user?.avatar ? (
-                                    <Image source={{ uri: user.avatar }} style={styles.avatarImg} />
+                                {avatarUri ? (
+                                    <Image source={{ uri: avatarUri }} style={styles.avatarImg} />
                                 ) : (
-                                    <Text style={styles.avatarTxt}>👤</Text>
+                                    <View style={styles.avatarFallback}>
+                                        <Text style={styles.avatarTxt}>{initial}</Text>
+                                    </View>
                                 )}
                             </View>
                             <View>
-                                <Text style={styles.userName}>{user?.name || 'Nhân viên QVC'}</Text>
+                                <Text style={styles.userName}>{user?.name || 'Thành viên QVC'}</Text>
                                 <View style={styles.privacyBadge}>
-                                    <Text style={styles.privacyTxt}>🌎 Mọi người trong QVC</Text>
+                                    <Globe size={12} color="#65676B" />
+                                    <Text style={styles.privacyTxt}>Công khai</Text>
                                 </View>
                             </View>
                         </View>
 
                         <TextInput
                             style={styles.input}
-                            placeholder="Bạn đang nghĩ gì thế? Chạm để nhập nội dung..."
-                            placeholderTextColor="#94a3b8"
+                            placeholder="Bạn đang nghĩ gì thế?"
+                            placeholderTextColor="#65676B"
                             multiline
                             autoFocus
                             value={content}
                             onChangeText={setContent}
                             textAlignVertical="top"
-                            scrollEnabled={false} // Để ScrollView cha xử lý
                         />
 
-                        {/* Image Preview List */}
+                        {/* Image Previews */}
                         {images.length > 0 && (
-                            <View style={styles.imagePreviewContainer}>
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                                    {images.map((uri, idx) => (
-                                        <View key={idx} style={styles.previewItem}>
-                                            <Image source={{ uri }} style={styles.previewImg} />
-                                            <TouchableOpacity style={styles.removeBadge} onPress={() => removeImage(idx)}>
-                                                <Text style={{ fontSize: 20, color: '#ef4444' }}>❌</Text>
-                                            </TouchableOpacity>
-                                        </View>
-                                    ))}
-                                    {images.length < 5 && (
-                                        <TouchableOpacity style={styles.addMoreBtn} onPress={handlePickImage}>
-                                            <Text style={{ fontSize: 32, color: '#94a3b8' }}>➕</Text>
+                            <View style={styles.previewContainer}>
+                                {images.map((img, i) => (
+                                    <View key={i} style={styles.previewWrapper}>
+                                        <Image source={{ uri: img }} style={styles.previewImg} />
+                                        <TouchableOpacity style={styles.previewRemoveBtn} onPress={() => handleRemoveImage(i)}>
+                                            <X size={16} color="#fff" />
                                         </TouchableOpacity>
-                                    )}
-                                </ScrollView>
+                                    </View>
+                                ))}
                             </View>
                         )}
                     </ScrollView>
-
-                    {/* Toolbar - Dính vào bàn phím nếu KeyboardAvoidingView chuẩn */}
-                    <View style={styles.toolbar}>
-                        <TouchableOpacity style={styles.toolIconWrapper} onPress={handlePickImage}>
-                            <Text style={styles.toolIcon}>🖼️</Text>
-                            <Text style={styles.toolLabel}>Thêm ảnh</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.toolIconWrapper}>
-                            <Text style={styles.toolIcon}>📍</Text>
-                            <Text style={styles.toolLabel}>Check-in</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.toolIconWrapper}>
-                            <Text style={styles.toolIcon}>😊</Text>
-                            <Text style={styles.toolLabel}>Cảm xúc</Text>
-                        </TouchableOpacity>
-                    </View>
                 </KeyboardAvoidingView>
 
+                {/* Toolbar Facebook */}
+                <View style={styles.toolbar}>
+                    <TouchableOpacity style={styles.toolIconWrapper} onPress={handlePickImage} activeOpacity={0.6}>
+                        <ImageIcon size={26} color="#45BD62" />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.toolIconWrapper} onPress={handleCamera} activeOpacity={0.6}>
+                        <Camera size={26} color="#06b6d4" />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.toolIconWrapper} onPress={handleGetLocation} activeOpacity={0.6} disabled={isLocating}>
+                        {isLocating ? (
+                            <ActivityIndicator size="small" color="#F5533D" />
+                        ) : (
+                            <MapPin size={26} color="#F5533D" />
+                        )}
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.toolIconWrapper} activeOpacity={0.6}>
+                        <Smile size={26} color="#F7B928" />
+                    </TouchableOpacity>
+                </View>
             </View>
         </Modal>
     );
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#f8fafc' },
+    container: { flex: 1, backgroundColor: '#fff' },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 16,
         paddingTop: Platform.OS === 'ios' ? 50 : 20,
-        paddingBottom: 16,
+        paddingBottom: 12,
         backgroundColor: '#fff',
         borderBottomWidth: 1,
-        borderBottomColor: '#e2e8f0',
+        borderBottomColor: '#CED0D4',
         zIndex: 10
     },
-    closeBtn: { padding: 8, marginLeft: -8 },
-    closeTxt: { color: '#64748b', fontSize: 16, fontWeight: '600' },
-    headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#1e293b' },
-    postBtn: { backgroundColor: '#3b82f6', paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20 },
-    postBtnDisabled: { backgroundColor: '#cbd5e1' },
+    closeBtn: { padding: 4, marginLeft: -4 },
+    headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#050505' },
+    postBtn: {
+        backgroundColor: '#1877F2',
+        paddingHorizontal: 16,
+        paddingVertical: 6,
+        borderRadius: 6
+    },
+    postBtnDisabled: { backgroundColor: '#E4E6EB' },
     postTxt: { color: '#fff', fontWeight: 'bold', fontSize: 15 },
+    postTxtDisabled: { color: '#BCC0C4' },
 
-    userInfo: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-    avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#f1f5f9', overflow: 'hidden', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+    body: { flex: 1 },
+    scrollContent: { padding: 16, flexGrow: 1 },
+    userInfo: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+    avatar: { width: 44, height: 44, borderRadius: 22, overflow: 'hidden', marginRight: 12 },
+    avatarFallback: { width: '100%', height: '100%', backgroundColor: '#8B5CF6', alignItems: 'center', justifyContent: 'center' },
     avatarImg: { width: '100%', height: '100%' },
-    avatarTxt: { fontSize: 24 },
-    userName: { fontSize: 16, fontWeight: '700', color: '#1e293b', marginBottom: 4 },
-    privacyBadge: { backgroundColor: '#f1f5f9', alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
-    privacyTxt: { fontSize: 12, color: '#475569', fontWeight: '500' },
+    avatarTxt: { fontSize: 18, fontWeight: 'bold', color: '#fff' },
+    userName: { fontSize: 16, fontWeight: '700', color: '#050505', marginBottom: 4 },
+    privacyBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f0f2f5', alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, gap: 4 },
+    privacyTxt: { fontSize: 13, color: '#65676B', fontWeight: '600' },
 
-    input: { minHeight: 120, fontSize: 18, color: '#1e293b', lineHeight: 28 },
+    input: { fontSize: 18, color: '#050505', lineHeight: 26, minHeight: 120 },
 
-    imagePreviewContainer: { marginTop: 20, marginBottom: 10 },
-    previewItem: { width: 100, height: 100, borderRadius: 12, marginRight: 12, position: 'relative' },
-    previewImg: { width: '100%', height: '100%', borderRadius: 12 },
-    removeBadge: { position: 'absolute', top: -10, right: -10, backgroundColor: '#fff', borderRadius: 12 },
-    addMoreBtn: { width: 100, height: 100, borderRadius: 12, backgroundColor: '#f1f5f9', borderStyle: 'dashed', borderWidth: 1, borderColor: '#cbd5e1', alignItems: 'center', justifyContent: 'center' },
+    previewContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 },
+    previewWrapper: { position: 'relative', width: 100, height: 100, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: '#f0f2f5' },
+    previewImg: { width: '100%', height: '100%' },
+    previewRemoveBtn: { position: 'absolute', top: 4, right: 4, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 12, padding: 4 },
 
     toolbar: {
         flexDirection: 'row',
-        justifyContent: 'space-around',
-        padding: 16,
+        alignItems: 'center',
+        paddingHorizontal: 16,
         backgroundColor: '#fff',
         borderTopWidth: 1,
-        borderTopColor: '#e2e8f0',
-        paddingBottom: Platform.OS === 'ios' ? 40 : 16,
+        borderTopColor: '#CED0D4',
+        paddingBottom: Platform.OS === 'ios' ? 30 : 16,
+        paddingTop: 12,
+        gap: 24
     },
-    toolIconWrapper: { alignItems: 'center', gap: 4 },
-    toolIcon: { fontSize: 24 },
-    toolLabel: { fontSize: 12, color: '#64748b', fontWeight: '500' }
+    toolIconWrapper: { padding: 4 },
 });

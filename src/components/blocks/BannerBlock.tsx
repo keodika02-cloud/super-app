@@ -4,33 +4,28 @@ import { ActionRegistry } from '../../utils/ActionRegistry';
 
 export const BannerBlock = ({ data }: { data: any }) => (
     <TouchableOpacity
-        style={styles.bannerCard}
-        onPress={() => ActionRegistry.execute(data.action, data.payload, data.title)}
+        style={styles.birthdayBanner}
+        activeOpacity={0.8}
+        onPress={() => ActionRegistry.execute(data.action)}
     >
-        <View style={styles.bannerContent}>
-            <View style={styles.bannerAvatar} />
-            <Text style={styles.bannerTitle}>{data.title}</Text>
-            <Text style={styles.bannerSubtitle}>{data.subtitle}</Text>
-            {data.action_label && <Text style={styles.bannerAction}>{data.action_label}</Text>}
-        </View>
+        <View style={styles.birthdayIcon} />
+        <Text style={styles.birthdayTitle}>🎉 {data.title}</Text>
+        <Text style={styles.birthdaySubtitle}>{data.subtitle}</Text>
+        {data.action_label && <Text style={styles.bannerAction}>{data.action_label}</Text>}
     </TouchableOpacity>
 );
 
 const styles = StyleSheet.create({
-    bannerCard: {
+    birthdayBanner: {
+        backgroundColor: '#EBF5FF',
         borderRadius: 20,
-        backgroundColor: '#eff6ff',
-        overflow: 'hidden',
+        padding: 20,
+        alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#bfdbfe',
-        justifyContent: 'center',
-        padding: 24,
+        borderColor: '#D1E8FF'
     },
-    bannerContent: { alignItems: 'center' },
-    bannerAvatar: {
-        width: 48, height: 48, borderRadius: 24, backgroundColor: '#93c5fd', marginBottom: 12
-    },
-    bannerTitle: { fontSize: 18, fontWeight: '700', color: '#1e3a8a' },
-    bannerSubtitle: { fontSize: 14, color: '#3b82f6', marginTop: 4 },
-    bannerAction: { fontSize: 15, color: '#2563eb', fontWeight: '700', marginTop: 12 },
+    birthdayIcon: { width: 64, height: 64, backgroundColor: '#93C5FD', borderRadius: 32, marginBottom: 12 },
+    birthdayTitle: { fontSize: 18, fontWeight: 'bold', color: '#1E3A8A', marginBottom: 4 },
+    birthdaySubtitle: { fontSize: 13, color: '#2563EB', fontWeight: '500', textAlign: 'center' },
+    bannerAction: { fontSize: 15, color: '#1e3a8a', fontWeight: 'bold', marginTop: 12 }
 });
