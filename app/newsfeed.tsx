@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, memo, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Image, ScrollView, Platform, Dimensions, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { FlashList } from '@shopify/flash-list';
 import { ApiClient } from '@services/ApiClient';
 import { API_ENDPOINTS } from '@config/api-endpoints';
 import { useAuthStore } from '@stores/useAuthStore';
@@ -9,8 +10,9 @@ import { CreatePostModal } from '@components/modals/CreatePostModal';
 
 const { width } = Dimensions.get('window');
 
-// Một phiên bản mở rộng của bài viết với chức năng CRUD
-const FeedItem = ({ post, currentUserId, onEdit, onDelete }: { post: any, currentUserId: number, onEdit: (post: any) => void, onDelete: (id: number) => void }) => {
+// ─── Sub-Components ──────────────────────────────────────────────────────────
+
+const FeedItem = memo(({ post, currentUserId, onEdit, onDelete }: { post: any, currentUserId: number, onEdit: (post: any) => void, onDelete: (id: number) => void }) => {
     return (
         <View style={styles.postCard}>
             <View style={styles.postHeader}>
@@ -53,7 +55,9 @@ const FeedItem = ({ post, currentUserId, onEdit, onDelete }: { post: any, curren
             </View>
         </View>
     );
-};
+});
+
+// ─── Main Screen ────────────────────────────────────────────────────────────
 
 export default function NewsfeedScreen() {
     const router = useRouter();
@@ -66,15 +70,13 @@ export default function NewsfeedScreen() {
     const [editingPost, setEditingPost] = useState<any>(null);
     const [editContent, setEditContent] = useState('');
 
-    const { data: feedData, isLoading, isRefetching } = useQuery({
+    const { data: feedData, isLoading, isRefetching, refetch } = useQuery({
         queryKey: ['news-feed-crud'],
         queryFn: async () => {
             const res = await ApiClient.fetchSafe(API_ENDPOINTS.V3.APP.NEWS_FEED, { method: 'GET', _t: Date.now() });
             return res?.posts || [];
         },
         staleTime: 1000 * 30, // 30s
-        refetchOnWindowFocus: false,
-        placeholderData: (prev) => prev,
     });
 
     const deleteMutation = useMutation({
@@ -86,7 +88,6 @@ export default function NewsfeedScreen() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['news-feed-crud'] });
-            queryClient.invalidateQueries({ queryKey: ['news-feed'] });
             Alert.alert('Thành công', 'Đã xóa bài viết.');
         }
     });
@@ -100,29 +101,37 @@ export default function NewsfeedScreen() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['news-feed-crud'] });
-            queryClient.invalidateQueries({ queryKey: ['news-feed'] });
             setEditingPost(null);
             setEditContent('');
             Alert.alert('Thành công', 'Đã cập nhật bài viết.');
         }
     });
 
-    const handleDelete = (id: number) => {
+    const handleDelete = useCallback((id: number) => {
         Alert.alert('Xác nhận xóa', 'Bạn có chắc chắn muốn xóa bài viết này?', [
             { text: 'Hủy', style: 'cancel' },
             { text: 'Xóa', style: 'destructive', onPress: () => deleteMutation.mutate(id) }
         ]);
-    };
+    }, [deleteMutation]);
 
-    const handleEdit = (post: any) => {
+    const handleEdit = useCallback((post: any) => {
         setEditingPost(post);
         setEditContent(post.content);
-    };
+    }, []);
 
     const submitEdit = () => {
         if (!editContent.trim()) return;
         updateMutation.mutate({ id: editingPost.id, content: editContent });
     };
+
+    const renderFeedItem = ({ item }: { item: any }) => (
+        <FeedItem
+            post={item}
+            currentUserId={user?.id || 0}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+        />
+    );
 
     return (
         <View style={styles.container}>
@@ -157,23 +166,23 @@ export default function NewsfeedScreen() {
                 </View>
             )}
 
-            <ScrollView contentContainerStyle={styles.list}>
-                {isLoading && (!feedData || feedData.length === 0) ? (
-                    <ActivityIndicator size="large" color="#3b82f6" style={{ marginTop: 50 }} />
-                ) : feedData && feedData.length > 0 ? (
-                    feedData.map((post: any) => (
-                        <FeedItem
-                            key={post.id}
-                            post={post}
-                            currentUserId={user?.id || 0}
-                            onEdit={handleEdit}
-                            onDelete={handleDelete}
-                        />
-                    ))
-                ) : (
-                    <Text style={styles.emptyTxt}>Không có bài viết nào.</Text>
-                )}
-            </ScrollView>
+            <View style={{ flex: 1 }}>
+                <FlashList
+                    data={feedData || []}
+                    renderItem={renderFeedItem}
+                    estimatedItemSize={200}
+                    keyExtractor={(item) => String(item.id)}
+                    contentContainerStyle={styles.list}
+                    onRefresh={refetch}
+                    refreshing={isRefetching}
+                    ListEmptyComponent={
+                        !isLoading ? <Text style={styles.emptyTxt}>Không có bài viết nào.</Text> : null
+                    }
+                    ListHeaderComponent={
+                        isLoading ? <ActivityIndicator size="large" color="#3b82f6" style={{ marginTop: 50 }} /> : null
+                    }
+                />
+            </View>
 
             <CreatePostModal
                 visible={isCreateModalVisible}

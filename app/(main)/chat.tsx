@@ -1,10 +1,46 @@
-import React, { useEffect, useCallback } from 'react';
-import { View, Text, FlatList, RefreshControl, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import React, { useEffect, useCallback, memo } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, RefreshControl } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { ScreenWrapper } from '@components/layout/ScreenWrapper';
 import { socketService } from '@services/SocketService';
 import { useAuthStore } from '@stores/useAuthStore';
 import { useChatStore } from '@stores/useChatStore';
 import { useRouter } from 'expo-router';
+
+// ─── Sub-Components ──────────────────────────────────────────────────────────
+
+const ConversationItem = memo(({ item, currentUserId, onPress }: { item: any, currentUserId: number, onPress: () => void }) => {
+    const otherParticipant = item.participants?.find((p: any) => p.user?.id !== currentUserId) || item.participants?.[0];
+    const displayName = item.name || otherParticipant?.user?.name || 'Hội thoại';
+    const avatar = otherParticipant?.user?.avatar || null;
+
+    return (
+        <TouchableOpacity style={styles.convoItem} onPress={onPress}>
+            <View style={styles.avatarWrapper}>
+                {avatar ? (
+                    <Image source={{ uri: avatar }} style={styles.avatar} />
+                ) : (
+                    <View style={styles.avatarPlaceholder}>
+                        <Text style={styles.avatarTxt}>{displayName.charAt(0)}</Text>
+                    </View>
+                )}
+                <View style={styles.onlineBadge} />
+            </View>
+
+            <View style={styles.convoBody}>
+                <View style={styles.convoHeader}>
+                    <Text style={styles.convoName} numberOfLines={1}>{displayName}</Text>
+                    <Text style={styles.convoTime}>
+                        {item.last_message_at ? new Date(item.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                    </Text>
+                </View>
+                <Text style={styles.lastMsg} numberOfLines={1}>{item.last_message_content || 'Bắt đầu trò chuyện...'}</Text>
+            </View>
+        </TouchableOpacity>
+    );
+});
+
+// ─── Main Screen ────────────────────────────────────────────────────────────
 
 export default function ChatScreen() {
     const { user } = useAuthStore();
@@ -13,14 +49,11 @@ export default function ChatScreen() {
 
     useEffect(() => {
         socketService.init();
-        fetchConversations(); // Lấy data khi vừa vô màn hình
+        fetchConversations();
 
-        // Listen Real-time global cho User hiện tại (Tất cả tin nhắn nhắm đến user này)
         if (user?.id) {
             socketService.listenPrivate(`App.Models.User.${user.id}`, 'MessageSent', (data) => {
-                console.log('[Real-time] Vừa nhận tin nhắn mới:', data);
                 if (data.message) {
-                    // Update preview ở tab Hội thoại
                     updateConversationLatest(
                         data.message.conversation_id,
                         data.message.content,
@@ -30,44 +63,23 @@ export default function ChatScreen() {
                 }
             });
         }
-
     }, [user?.id]);
 
     const onRefresh = useCallback(() => {
         fetchConversations(true);
-    }, []);
+    }, [fetchConversations]);
 
-    const renderItem = ({ item }: { item: any }) => {
-        const otherParticipant = item.participants?.find((p: any) => p.user?.id !== user?.id) || item.participants?.[0];
-        const displayName = item.name || otherParticipant?.user?.name || 'Hội thoại';
-        const avatar = otherParticipant?.user?.avatar || null;
+    const handlePress = useCallback((id: number) => {
+        router.push(`/chat/${id}`);
+    }, [router]);
 
-        return (
-            <TouchableOpacity
-                style={styles.convoItem}
-                onPress={() => router.push(`/chat/${item.id}`)}
-            >
-                <View style={styles.avatarWrapper}>
-                    {avatar ? (
-                        <Image source={{ uri: avatar }} style={styles.avatar} />
-                    ) : (
-                        <View style={styles.avatarPlaceholder}>
-                            <Text style={styles.avatarTxt}>{displayName.charAt(0)}</Text>
-                        </View>
-                    )}
-                    <View style={styles.onlineBadge} />
-                </View>
-
-                <View style={styles.convoBody}>
-                    <View style={styles.convoHeader}>
-                        <Text style={styles.convoName} numberOfLines={1}>{displayName || 'Hội thoại'}</Text>
-                        <Text style={styles.convoTime}>{item.last_message_at ? new Date(item.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</Text>
-                    </View>
-                    <Text style={styles.lastMsg} numberOfLines={1}>{item.last_message_content || 'Bắt đầu trò chuyện...'}</Text>
-                </View>
-            </TouchableOpacity>
-        );
-    };
+    const renderItem = ({ item }: { item: any }) => (
+        <ConversationItem
+            item={item}
+            currentUserId={user?.id || 0}
+            onPress={() => handlePress(item.id)}
+        />
+    );
 
     return (
         <ScreenWrapper showOfflineBanner={true}>
@@ -82,19 +94,25 @@ export default function ChatScreen() {
                     </TouchableOpacity>
                 </View>
 
-                <FlatList
-                    data={conversations}
-                    renderItem={renderItem}
-                    keyExtractor={(item) => String(item.id || Math.random())}
-                    contentContainerStyle={styles.listContent}
-                    refreshControl={<RefreshControl refreshing={isLoadingConvos} onRefresh={onRefresh} tintColor="#3b82f6" />}
-                    ListEmptyComponent={
-                        <View style={styles.emptyState}>
-                            <Text style={styles.emptyTxt}>Chưa có hội thoại nào</Text>
-                            <Text style={styles.emptySub}>Hãy bắt đầu trò chuyện với đồng nghiệp.</Text>
-                        </View>
-                    }
-                />
+                <View style={{ flex: 1 }}>
+                    <FlashList
+                        data={conversations}
+                        renderItem={renderItem}
+                        estimatedItemSize={80}
+                        keyExtractor={(item) => String(item.id)}
+                        contentContainerStyle={styles.listContent}
+                        onRefresh={onRefresh}
+                        refreshing={isLoadingConvos}
+                        ListEmptyComponent={
+                            !isLoadingConvos ? (
+                                <View style={styles.emptyState}>
+                                    <Text style={styles.emptyTxt}>Chưa có hội thoại nào</Text>
+                                    <Text style={styles.emptySub}>Hãy bắt đầu trò chuyện với đồng nghiệp.</Text>
+                                </View>
+                            ) : null
+                        }
+                    />
+                </View>
             </View>
         </ScreenWrapper>
     );
